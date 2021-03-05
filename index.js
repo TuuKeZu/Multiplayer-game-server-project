@@ -1,5 +1,6 @@
 const io = require('socket.io')(process.env.PORT || 52300); 
 
+const { emit } = require('nodemon');
 //custom classes
 
 const _Player = require("./classes/player.js");
@@ -21,11 +22,10 @@ io.on('connection', function(socket) {
     socket_list[thisPlayerID] = socket;
 
     //tell client that this is the unique id
-    server_log("Request coming", 0);
 
     socket.on('handshake', function(data) {
         player.username = data.username;
-        server_log("username : "+data.username, 2);
+        server_log("username : "+data.username, 0);
         socket.emit('verify', player);
     });
 
@@ -44,7 +44,7 @@ io.on('connection', function(socket) {
             socket.emit('spawn', Player_list[playerID]);
         }
     }
-    server_log("Client ["+thisPlayerID+"] : ["+player.username+"] have connected to a server. New client count is "+Player_Count, 0);
+    server_log("Client ["+thisPlayerID+"] have connected to a server. New client count is "+Player_Count, 0);
     
     //position packets
 
@@ -55,13 +55,23 @@ io.on('connection', function(socket) {
         
 
         socket.broadcast.emit('UpdatePosition', player);
-        server_log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+player.lookingAt+"].");
+        //server_log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+player.lookingAt+"].");
     });
 
     socket.on('UpdateTarget', function(data) {
         player.lookingAt = data.target;
-        server_log("Client ["+data.ID+"] is looking at: ["+player.lookingAt+"].");
+        //server_log("Client ["+thisPlayerID+"] is looking at: ["+player.lookingAt+"].");
     });
+
+    //chat
+    socket.on('SendMessageToServer', function(data) {
+        var message = data.content;
+        var username = data.username;
+        server_log("<"+username+"> sent message : ["+message+"]", 3);
+        public_chat.push("<"+username+">: "+message);
+        server_log("ChatArray is now equal to: "+public_chat);
+    });
+
 
     
 
@@ -100,6 +110,7 @@ io.on('connection', function(socket) {
     //0 = green
     //1 = yellow
     //2 = red
+    //3 = white
 
     function server_log(content, type){
         let currentDate = new Date();
@@ -116,5 +127,8 @@ io.on('connection', function(socket) {
         }
         if(type == 2){
             console.log('\u001b[' + 31 + 'm' + content + '\u001b[0m');
+        }
+        if(type == 3){
+            console.log(content);
         }
     }
