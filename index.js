@@ -1,28 +1,40 @@
-const io = require('socket.io')(process.env.PORT || 80); 
+const io = require('socket.io')(process.env.PORT || 52300); 
 
 //custom classes
 
 const _Player = require("./classes/player.js");
-const _Player_data = require("./classes/player_data.js");
 server_log('Server has started');
 
 var Player_list = [];
 var socket_list = [];
+var public_chat = [];
+var Player_Count = 0;
 
 io.on('connection', function(socket) {
 
     var player = new _Player();
-    var player_data = new _Player_data();
     var thisPlayerID = player.id;
+    var IsConnected = false;
+    Player_Count += 1;
 
     Player_list[thisPlayerID] = player;
     socket_list[thisPlayerID] = socket;
 
     //tell client that this is the unique id
-    socket.emit('register', {id: thisPlayerID})
+    server_log("Request coming", 0);
 
+    socket.on('handshake', function(data) {
+        player.username = data.username;
+        server_log("username : "+data.username, 2);
+        socket.emit('verify', player);
+    });
+
+    socket.emit('register', {id: thisPlayerID});
+    
+    
     socket.emit('spawn', player);
     socket.broadcast.emit('spawn', player);
+    
     
 
     //tell client about everyone in the game
@@ -32,24 +44,36 @@ io.on('connection', function(socket) {
             socket.emit('spawn', Player_list[playerID]);
         }
     }
-    server_log("Client ["+thisPlayerID+"] have connected to a server", 0);
+    server_log("Client ["+thisPlayerID+"] : ["+player.username+"] have connected to a server. New client count is "+Player_Count, 0);
     
     //position packets
 
     socket.on('UpdatePosition', function(data) {
         player.position.x = data.position.X;
+        player.position.y = data.position.Y;
         player.position.z = data.position.Z;
+        
 
-        socket.broadcast.emit('test', player);
-        server_log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z);
+        socket.broadcast.emit('UpdatePosition', player);
+        server_log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+player.lookingAt+"].");
     });
+
+    socket.on('UpdateTarget', function(data) {
+        player.lookingAt = data.target;
+        server_log("Client ["+data.ID+"] is looking at: ["+player.lookingAt+"].");
+    });
+
+    
 
     socket.on('disconnect', function() {
         socket.broadcast.emit('disconnected', player)
+        Player_Count += 0;
         server_log("A client ["+thisPlayerID+"] have disconnected", 1);
         delete Player_list[thisPlayerID];
         delete socket_list[thisPlayerID];
+        IsConnected = false;
     });
+    
 });
 
 

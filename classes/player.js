@@ -6,5 +6,8 @@ module.exports = class Player {
         this.username = '';
         this.id = shortID.generate();
         this.position = new _Vector3();
+        this.health = 100;
+        this.CanShoot = true;
+        this.lookingAt = null;
     }
 }
