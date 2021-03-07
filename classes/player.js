@@ -7,6 +7,7 @@ module.exports = class Player {
         this.id = shortID.generate();
         this.position = new _Vector3();
         this.health = 100;
+        this.IsAlive = true;
         this.CanShoot = true;
         this.lookingAt = null;
     }
