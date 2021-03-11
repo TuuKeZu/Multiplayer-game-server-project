@@ -87,25 +87,30 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
         packet_effected = player.lookingAt;
         //server_log(packet_effected+" Got shot by : "+Packet_Sender, 3);
 
-        if(packet_effected != "Client : "+Packet_Sender){
+        if(packet_effected != Packet_Sender){
             for (let index = 0; index < ID_list.length; index++) {
                 if(packet_effected == ID_list[index]){
 
-                    Player_list[ID_list[index]].health -= 10;
-
-                    if(Player_list[ID_list[index]].health < 0){
-                        var username = Player_list[ID_list[index]].username;
-                        var sender_username = Player_list[thisPlayerID].username;
-                        KillClient(packet_effected);
-
-                        socket.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
-                        socket.broadcast.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
+                    if(Gamedata.have_started && Player_list[ID_list[index]].team == Player_list[Packet_Sender].team){
+                        server_log("Team grieffing is not cool my man!", 3);
                     }
                     else{
-                        socket.emit('UpdateHealth', Player_list[ID_list[index]]);
-                        socket.broadcast.emit('UpdateHealth', Player_list[ID_list[index]]);
+                        Player_list[ID_list[index]].health -= 10;
+
+                        if(Player_list[ID_list[index]].health < 0){
+                            var username = Player_list[ID_list[index]].username;
+                            var sender_username = Player_list[thisPlayerID].username;
+                            KillClient(packet_effected);
     
-                        server_log(Player_list[ID_list[index]].health, 3);
+                            socket.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
+                            socket.broadcast.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
+                        }
+                        else{
+                            socket.emit('UpdateHealth', Player_list[ID_list[index]]);
+                            socket.broadcast.emit('UpdateHealth', Player_list[ID_list[index]]);
+        
+                            server_log(Player_list[ID_list[index]].health, 3);
+                        }
                     }
 
                 }
@@ -177,6 +182,7 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
         socket.emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
         socket.broadcast.emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
 
+
         //RANDOM PARTIES
 
         for (let index = 0; index < ID_list.length; index++) {
@@ -184,15 +190,24 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
                 //red Team
                 id = ID_list[index];
                 target = Player_list[id];
+                targetSocket = socket_list[id];
+
                 target.team = "RED";
                 server_log("["+target.username+"] was assinged to the blue team!", 2);
+                targetSocket.emit('SetTeam', target);
+                targetSocket.broadcast.emit('SetTeam', target);
             }
             else{
                 //blue team
                 id = ID_list[index];
                 target = Player_list[id];
+                targetSocket = socket_list[id];
+
+                target = Player_list[id];
                 target.team = "BLUE";
                 server_log("["+target.username+"] was assinged to the blue team!", 0);
+                targetSocket.emit('SetTeam', target);
+                targetSocket.broadcast.emit('SetTeam', target);
             }
         }
 
