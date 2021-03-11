@@ -10,5 +10,7 @@ module.exports = class Player {
         this.IsAlive = true;
         this.CanShoot = true;
         this.lookingAt = null;
+
+        this.team = null;
     }
 }
