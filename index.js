@@ -1,65 +1,83 @@
-
-//© 2021, Tuukka Moilanen. All rights reserved
-
-
 //ws://127.0.0.1:52300/socket.io/?EIO=3&transport=websocket
 //ws://45.32.234.225:52300/socket.io/?EIO=3&transport=websocket
 
 
 
-const io = require('socket.io')(process.env.PORT || 52300);  //avaa portin liittymistä varten käyttäen socket.io nimustä kirjastoa.
+const io = require('socket.io')(process.env.PORT || 52300);  
+const Server = require('./classes/server.js');
+const Console = require('./classes/console');
+const ServerConsole = new Console();
 
-const _Player = require("./classes/player.js"); //"class" on käytännössä datan tallennus paikka, jossa pidän kaikki tiedot pelaajasta.
+/* const _Player = require("./classes/player.js"); 
 const _GameData = require("./classes/game_data");
-const _Vector3 = require('./classes/vector3.js'); //taas, tämä on vertaus vector3 nimiseen "classiin", jota käytän pelaajan koordinaatiston tallentamiseen. 
-const sleep = require('system-sleep'); //
+const _Vector3 = require('./classes/vector3.js'); 
+const sleep = require('system-sleep');
+*/
+const fs = require('fs');
 
-server_log('Server has started'); //"server_log" on komento, jolla voidaan kirjoittaa konsoliin. Tässä tapauksessa se ilmoittaa kun serveri käynnistää.
+ServerConsole.LogEvent("Server started", null, 0);
+fs.writeFile('Server_Logs.txt', "Server has been started"+"\n", (err) => {
+    if(err) throw err;
+});
 
-var Player_list = []; //lista pelaajista
-var socket_list = []; //lista yhteyksistä
-var ID_list = []; //lista liittyneiden yhteyksien uniikeista kiirjaintunnuksista
-var Player_username_list = []; //lista pelaajien nimistä
-var public_chat = []; //chat, eli pelaajille pelissä näkyvä kirjoitusalusta
-var Player_Count = 0; //liittyneiden pelaajien määrä
+let server = new Server();
+
+io.on('connection', function(socket){
+    let connection = server.OnConnected(socket);
+    connection.CreateEvents();
+    connection.socket.emit('register', {'id':connection.player.id});
+});
+
+/*
+var Player_list = []; 
+var socket_list = []; 
+var ID_list = []; 
+var Player_username_list = []; 
+var public_chat = []; 
+var Player_Count = 0; 
 var Gamedata = new _GameData();
 
-io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
-    var player = new _Player(); //luo uuden pelaaja "classin", jota myöhemmin käytetään pelaajan tietojen tallentamiseen. Tässä vaiheessa sen siällä on jo kuitenkin pelaajan uniikki "id", joka on uniikki kirjaintunnus.
-    var thisPlayerID = player.id; //asettaa muuttujan, jota voidaan käyttään, kun haetaan pelaajan uniikkia tunnusta.
-    ID_list.push(thisPlayerID); //Hieman monimutkaisempi. Huomasit varmaan, että esimerkiksi muuttujassa "Player_List", oli sen arvo []. Tämä tarkoittaa sitä, että se on lista, eli array. Push-komennolla voidaan lisätä listaan jokin muuttuja, joka on tässä tapauksessa uniikki kirjaintunnus.
-    Player_Count += 1; //lisää pelaajamäärää yhdellä
-    Player_list[thisPlayerID] = player; //taas, käytetään listoja. "Player_List[thisPlayerID]"" tarkoittaa sitä, että listaan lisätään vähän niinkuin kansio, jonka nimi on tämän pelaajan kirjaintunnus. Kansion sisälle sitten laitetaan pelaajan tideot."
-    socket_list[thisPlayerID] = socket; //taas luodaan kansio. Tässä tapauksessa kansion sisälle tulee "socket", eli pelaajan yhteys.
+io.on('connection', function(socket) { 
+    var player = new _Player(); 
+    var thisPlayerID = player.id; 
+    ID_list.push(thisPlayerID); 
+    Player_list[thisPlayerID] = player; 
+    socket_list[thisPlayerID] = socket; 
 
-    socket.on('handshake', function(data) {  //tämän jälkeen suoritetaan "handshake", joka periaatteessa tarkoittaa sitä, että liittyvän laitteen täytyy lähettää liittymispyynnönlisäksi toinen pyyntö, jossa kertoo pelaajanimensänimensä.
-        player.username = data.username; //tallentaa pyynnön mukana tulleen nimen player "classiin".
-        server_log("username : "+data.username, 0); //kirjoittaa pelaajan nimen konsoliin
-        socket.emit('verify', player); //emit() komento lähettää serveriltä, eli tästä koodista, pyynnön takaisin laitteelle. vastaanottaessa pyynnön laite tietää että liityminen onnistui.
-        Player_username_list[thisPlayerID] = player.username; //luo kansion "Player_username_list" nimiseen listaan, kansion nimi on kirjaintunnus, ja sisältö on pelaajan nimi.
+    socket.on('handshake', function(data) {  
+        player.username = data.username; 
+        server_log("username : "+data.username, 0); 
+        serverLogs_log("Client username: "+data.username);
+        socket.emit('verify', player); 
+        Player_username_list[thisPlayerID] = player.username; 
 
-        socket.broadcast.emit('spawn', player); //broadcast.emit() on komento, joka lähettää pyynnön kaikille liittyneille laitteile, paitsi sille, joka sen lähettää. Tässä serveri siis lähettää kaikille (paitsi sille joka liityi) laitteille tiedon että uusi laite on liittynyt
+        socket.broadcast.emit('spawn', player); 
 
-        for(var playerID in Player_list) { //tavallinen looppi, joka tapahtuu niin monta kertaa, kuin Player_listissä on muutujia sisällä.
-            if(playerID != thisPlayerID){ //jos laitteen kirjaintunnus ei ole littyvän laitteen
-                socket.emit('spawn', Player_list[playerID]); //kertoo liityvälle pelaajalle kaikista muista (toistuu siis niin monta kertaa kun muita on).
-                //server_log("Client is verifying it's name! ID : "+playerID+". Username : "+Player_username_list[playerID], 0); //muutettu kommentiksi koska käytetään vain koodia testatessa, kun halutaan tietää kuka ja milloin liitty.
+        for(var playerID in Player_list) { 
+            if(playerID != thisPlayerID){ 
+                socket.emit('spawn', Player_list[playerID]); 
+                
             }
         }
-        var ip = socket.request.connection.remoteAddress; //hakee yhteyden IP osoitteen ja kirjoittaa sen konsoliin
+        var ip = socket.request.connection.remoteAddress; 
         server_log("Client ["+thisPlayerID+"]["+ip+"] have connected to a server. New client count is "+Player_Count, 0);
+
+        serverLogs_log("Client connected to the server!");
+        serverLogs_log("Client ID: "+thisPlayerID);
+        serverLogs_log("Client IP address: "+ip);
+
     });
 
-    socket.emit('register', {id: thisPlayerID}); //menee taas vain liittyvälle laitteele, kertoo uniikin kirjaintunnuksen.
-    socket.emit('spawn', player); //pyytää laitetta luomaan itsensä pelimaailmaan.
+    socket.emit('register', {id: thisPlayerID}); 
+    socket.emit('spawn', player); 
 
     var MaxPlayers = 100;
 
-    if(Player_Count > MaxPlayers){ //jos yhteyksiä serveriin on enemmän kuin sallittu määrä, serveri poistaa tämän yhteyden.
+    if(Player_Count > MaxPlayers){ 
         Disconnect();
     }
 
-    //en tule kirjoittamaan enempää dokumentatiota suomeksi. -----------------------------------------------------------------------------------------------------------------
+    
     
     //position packets
 
@@ -100,10 +118,11 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
                         if(Player_list[ID_list[index]].health < 0){
                             var username = Player_list[ID_list[index]].username;
                             var sender_username = Player_list[thisPlayerID].username;
-                            KillClient(packet_effected);
-    
+
                             socket.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
                             socket.broadcast.emit("MessageEventReceived", {content: "["+username+"] Was Shot by: ["+sender_username+"]"});
+
+                            KillClient(packet_effected);
                         }
                         else{
                             socket.emit('UpdateHealth', Player_list[ID_list[index]]);
@@ -119,6 +138,9 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
         else{
             server_log("packet receiver cannot be sender!", 2);
         }
+    }
+    else{
+        server_log("Cannot attack dead player!", 2);
     }
     });
 
@@ -187,27 +209,55 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
 
         for (let index = 0; index < ID_list.length; index++) {
             if(index+1 % 2 == 1){
-                //red Team
+                //red Team'
                 id = ID_list[index];
                 target = Player_list[id];
                 targetSocket = socket_list[id];
+                target.IsAlive = false;
 
                 target.team = "RED";
                 server_log("["+target.username+"] was assinged to the blue team!", 2);
                 targetSocket.emit('SetTeam', target);
                 targetSocket.broadcast.emit('SetTeam', target);
+
+                target.position.x = 77.855;
+                target.position.y = -3.06;
+                target.position.z = 33.191;
+
+                targetSocket.broadcast.emit('UpdatePosition', target);
+                targetSocket.emit('Move', target);
+
+                setTimeout(() => {
+                    targetSocket.emit('Respawn', target);
+                    target.IsAlive = true;
+                }, 1000);
+
             }
             else{
                 //blue team
                 id = ID_list[index];
                 target = Player_list[id];
                 targetSocket = socket_list[id];
+                target.IsAlive = false;
 
                 target = Player_list[id];
                 target.team = "BLUE";
                 server_log("["+target.username+"] was assinged to the blue team!", 0);
                 targetSocket.emit('SetTeam', target);
                 targetSocket.broadcast.emit('SetTeam', target);
+
+                target.position.x = -26;
+                target.position.y = -3.6;
+                target.position.z = -71.8
+
+                targetSocket.broadcast.emit('UpdatePosition', target);
+                targetSocket.emit('Move', target);
+
+                setTimeout(() => {
+                    targetSocket.emit('Respawn', target);
+                    target.IsAlive = true;
+                }, 1000);
+
             }
         }
 
@@ -229,8 +279,9 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
 
 
         server_log("Killed client!", 2);
-        sleep(300);
-        Respawn(ID);
+        setTimeout(() => {
+            Respawn(ID);
+        }, 1000);
         server_log("revived client!", 0);
 
     }
@@ -335,3 +386,21 @@ io.on('connection', function(socket) { //kun joku yrittää liittyä porttiin.
             console.log(content);
         }
     }
+
+
+    function serverLogs_log(content){
+        let currentDate = new Date();
+        let time = currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
+        content_array = content.split('/');
+        for (let index = 0; index < content_array.length; index++) {
+            if(content_array[index] != null){
+                var content_ = "["+time+"] "+content_array[index]+"\n";
+                fs.appendFile('server_logs.txt', content_, (err) => {
+                    if(err) throw err;
+                });    
+            }     
+            
+        }
+    }
+
+*/
