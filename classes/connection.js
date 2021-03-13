@@ -31,5 +31,9 @@ module.exports = class Connection{
         socket.on('SendAttackPacket', function(data){
             connection.lobby.SendAttackPacket(connection, data);
         });
+
+        socket.on('SendMessageToServer', function(data){
+            connection.lobby.SendMessageToLobby(connection, data);
+        });
     }
 }

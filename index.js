@@ -5,15 +5,14 @@
 
 const io = require('socket.io')(process.env.PORT || 52300);  
 const Server = require('./classes/server.js');
+
 const Console = require('./classes/console');
 const ServerConsole = new Console();
 
-/* const _Player = require("./classes/player.js"); 
-const _GameData = require("./classes/game_data");
-const _Vector3 = require('./classes/vector3.js'); 
-const sleep = require('system-sleep');
-*/
 const fs = require('fs');
+
+const Debug = require('./classes/debug');
+const DEBUG = new Debug();
 
 ServerConsole.LogEvent("Server started", null, 0);
 fs.writeFile('Server_Logs.txt', "Server has been started"+"\n", (err) => {
@@ -22,11 +21,32 @@ fs.writeFile('Server_Logs.txt', "Server has been started"+"\n", (err) => {
 
 let server = new Server();
 
+DEBUG.ShowAttackpackets = false;
+DEBUG.ShowPLayersTargetData = false;
+DEBUG.ShowPlayersMovementData = false;
+
 io.on('connection', function(socket){
     let connection = server.OnConnected(socket);
     connection.CreateEvents();
     connection.socket.emit('register', {'id':connection.player.id});
 });
+
+//server side command handler
+
+process.stdin.resume();
+process.stdin.setEncoding('utf8');
+
+process.stdin.on('data', function (text) {
+  ServerConsole.LogEvent(text, null, null);
+  if (text.trim() === 'stop') {
+    quit();
+  }
+});
+
+function quit() {
+    ServerConsole.LogEvent('Server shut down!', null, 2);
+    process.exit();
+}
 
 /*
 var Player_list = []; 
