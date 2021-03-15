@@ -20,12 +20,20 @@ module.exports = class Connection{
             server.OnAttemptToJoinGame(connection);
         });
 
+        socket.on('JoinGamePrivate', function(data){
+            server.OnAttemptToJoinGamePrivate(connection, data);
+        });
+
         socket.on('handshake', function(data){
             connection.lobby.SendHandShake(connection, data);
         });
 
         socket.on('UpdatePosition', function(data){
             connection.lobby.UpdatePosition(connection, data);
+        });
+
+        socket.on('UpdateTarget', function(data){
+            connection.lobby.UpdateTarget(connection, data);
         });
 
         socket.on('SendAttackPacket', function(data){

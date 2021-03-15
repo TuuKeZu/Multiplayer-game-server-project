@@ -29,11 +29,11 @@ module.exports = class LobbyBase{
 
         let index = lobby.connections.indexOf(connection);
 
-        ServerConsole.LogEvent("preparing to remove ["+"] from connections list", lobby.id, null);
+        //ServerConsole.LogEvent("preparing to remove ["+connection.player.id+"] from connections list", lobby.id, null);
 
         if(index > -1){
             lobby.connections.splice(index, 1)
-            ServerConsole.LogEvent("Removed player from connections list", lobby.id, null);
+            //ServerConsole.LogEvent("Removed player from connections list", lobby.id, null);
         }
         ServerConsole.LogEvent("Client have left the lobby!", lobby.id, 1);
     }

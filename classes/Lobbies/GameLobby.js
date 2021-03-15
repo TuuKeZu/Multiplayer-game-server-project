@@ -8,9 +8,10 @@ let LobbyBase = require('./lobbyBase');
 let GameLobbySettings = require('./GameLobbySettings');
 let Connection = require('../connection');
 module.exports = class GameLobby extends LobbyBase {
-    constructor(id, setting = GameLobbySettings){
+    constructor(id, setting = GameLobbySettings, password = String){
         super(id);
         this.settings = setting;
+        this.password = null;
         this.public_chat = [];
     }   
 
@@ -20,10 +21,13 @@ module.exports = class GameLobby extends LobbyBase {
         let CurrentPlayerCount = lobby.connections.length;
 
         if(CurrentPlayerCount + 1 > maxPlayerCount){
+            ServerConsole.LogEvent("Connection to lobby ["+lobby.id+"] was declined. Reason : too many players!", null, null);
             return false;
         }
-
-        return true;
+        else{
+            ServerConsole.LogEvent("Connection to lobby ["+lobby.id+"] was allowed since this lobby's connection count is : "+CurrentPlayerCount+"/"+maxPlayerCount, null, null);
+            return true;
+        }
     }
 
     OnEnterLobby(connection = Connection){
@@ -42,6 +46,7 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     SendHandShake(connection = Connection, data){
+        
         let socket = connection.socket;
 
         connection.player.username = data.username; 
@@ -51,6 +56,7 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     SendMessageToLobby(connection = Connection, data){
+        let lobby = this;
 
         let socket = connection.socket;
 
@@ -77,19 +83,33 @@ module.exports = class GameLobby extends LobbyBase {
         this.public_chat.push("["+username+"]: "+message);
     
         socket.emit('MessageEventVerification', {content: message});
-        socket.broadcast.emit("MessageEventReceived", {content: this.public_chat[this.public_chat.length -1]});
+        socket.broadcast.to(lobby.id).emit("MessageEventReceived", {content: this.public_chat[this.public_chat.length -1]});
+    }
+
+    UpdateTarget(connection = Connection, data){
+        let lobby = this;
+        let player = connection.player;
+
+        player.lookingAt = data.target;
+        //ServerConsole.LogEvent("Client ["+player.id+"] is looking at: ["+player.lookingAt+"].");
     }
 
     UpdatePosition(connection = Connection, data){
+        let lobby = this;
+        let socket = connection.socket;
+        let player = connection.player;
         if(connection.player.IsAlive){
             connection.player.position.x = data.position.X;
             connection.player.position.y = data.position.Y;
             connection.player.position.z = data.position.Z;
 
+            socket.broadcast.to(lobby.id).emit('UpdatePosition', player);
+
             if(DEBUG.ShowPlayersMovementData){
                 console.log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+connection.player.lookingAt+"].");
             }
         }
+        
     }
 
     SendAttackPacket(connection = Connection, data){
