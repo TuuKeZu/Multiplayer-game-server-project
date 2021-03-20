@@ -9,6 +9,7 @@ let LobbyBase = require('./Lobbies/lobbyBase');
 let Gamelobby = require('./Lobbies/GameLobby');
 let GameLobbySettings = require('./Lobbies/GameLobbySettings');
 const shortid = require('shortid');
+const Connection = require('./connection');
 
 module.exports = class Server {
     constructor(){
@@ -73,18 +74,6 @@ module.exports = class Server {
         })
         ServerConsole.LogEvent("Found a total of : "+GameLobbies.length+"/"+server.lobbies.length+" from the server!", connection.lobby.id, null);
 
-        /*GameLobbies.forEach(lobby => {
-            if(!LobbyFound){
-                let CanJoin = lobby.CanEnterLobby(connection);
-
-                if(CanJoin && lobby.password == null){
-                    LobbyFound = true;
-                    server.OnSwitchLobby(connection, lobby.id);
-                }
-            }
-        })
-        */
-
         for (let index = 0; index < server.lobby_IDs.length; index++) {
             if(!LobbyFound){
                 let lobbyID = server.lobby_IDs[index];
@@ -145,6 +134,12 @@ module.exports = class Server {
                 }
                 else{
                     ServerConsole.LogEvent("Password["+data.password+"] wasn't equal to ["+server.lobbies[server.lobby_IDs[index]].password+"]");
+                    var e = {
+                        type: "lobby",
+                        msg: "411:incorrect password"
+                    }
+
+                    connection.socket.emit('ErrorReceived',e);
                 }
             }
             
@@ -171,12 +166,13 @@ module.exports = class Server {
     }
 
     //for lobby with password
-    CreateLobbyPrivate(settings = GameLobbySettings, password){
+    CreateLobbyPrivate(settings = GameLobbySettings, password, connection = Connection_){
         let server = this;
         let id = shortid.generate();
 
         if(password != null){
             ServerConsole.LogEvent("Creating new private lobby...", null, 1);
+
             let gamelobby = new Gamelobby(id, settings, password);
             gamelobby.password = password;
 
@@ -184,6 +180,17 @@ module.exports = class Server {
             server.lobby_IDs[server.lobby_IDs.length +1] = id;
 
             ServerConsole.LogEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id+", Password of : "+gamelobby.password+", Maxplayers of : "+settings.maxPlayerCount, null, null);
+
+            if(settings.isPlayerGenerated){
+                gamelobby.IsServerGenerated = false;
+            }
+            else{
+                gamelobby.IsServerGenerated = true;
+            }
+        
+            if(connection != null){
+                server.OnSwitchLobby(connection, gamelobby.id);
+            }
         }
     }
 
@@ -202,14 +209,40 @@ module.exports = class Server {
     KillLobby(lobby = Gamelobby){
         ServerConsole.LogEvent("starting lobby shutdown", lobby.id, 2);
         
-        let index = this.lobbies.indexOf(lobby);
+        let target = lobby;
 
-        if(index > -1){
-            this.lobbies.splice(index, 1)
-            ServerConsole.LogEvent("Successfully removed the lobby!");
+        if(target != null){
+            for (let index = 0; index < this.lobby_IDs.length; index++) {
+                if(this.lobby_IDs[index] == target.id){
+                    this.lobby_IDs.splice(index, 1);
+                    ServerConsole.LogEvent("Successfully deleted the lobby!");
+                }
+                
+            }
+
+
         }
+
     }
 
+    OnLobbyCheck(){
+        for (let index = 0; index < this.lobby_IDs.length; index++) {
+            let temp_lobbyID = this.lobby_IDs[index];
+
+            if(temp_lobbyID != null){
+                let lobby = this.lobbies[temp_lobbyID];
+
+                //ServerConsole.LogEvent(lobby.id);
+
+                if(lobby.connections.length < 1){
+                    if(!lobby.IsServerGenerated){
+                        this.KillLobby(lobby);
+                    }
+                }
+            }
+            
+        }
+    }
 
 
 

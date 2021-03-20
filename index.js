@@ -11,9 +11,13 @@ let GameLobbySettings = require('./classes/Lobbies/GameLobbySettings');
 const Console = require('./classes/console');
 const ServerConsole = new Console();
 
+const mysql = require('./classes/MySQLconnection');
+const mySQL = new mysql();
+
 const fs = require('fs');
 
 const Debug = require('./classes/debug');
+const MySQL = require('./classes/MySQLconnection');
 const DEBUG = new Debug();
 
 ServerConsole.LogEvent("Server started", null, 0);
@@ -22,6 +26,10 @@ fs.writeFile('Server_Logs.txt', "Server has been started"+"\n", (err) => {
 });
 
 let server = new Server();
+
+setInterval(() => {
+    server.OnLobbyCheck();
+}, 5000);
 
 DEBUG.ShowAttackpackets = false;
 DEBUG.ShowPLayersTargetData = false;
@@ -81,6 +89,11 @@ if (console_array[0].trim() === 'msg') {
     }
 }
 
+if (text.trim() === 'mysql') { //jos konsoliin kirjoitetaan "mysql", jotain tapahtuu.
+    mySQL.database = 'multiplayer-game-database';
+    mySQL.CreateConnection();
+}
+
   if (console_array[0].trim() === 'create') {
     if(console_array[1] != null && console_array[2] != null){
         CreateLobby(console_array[1], console_array[2]);
@@ -99,6 +112,7 @@ function quit() {
     process.exit();
 }
 
+
 function LobbyList(){
     ServerConsole.LogEvent("Heres a list of open lobbies at the moment:", null, 0);
     for (let index = 0; index < server.lobby_IDs.length; index++) {
@@ -106,7 +120,7 @@ function LobbyList(){
     }
 }
 function CreateLobby(password, maxPlayers){
-    server.CreateLobbyPrivate(new GameLobbySettings('NORMAL', maxPlayers), password);
+    server.CreateLobbyPrivate(new GameLobbySettings('NORMAL', maxPlayers), password, null);
 }
 
 function connectionList(){

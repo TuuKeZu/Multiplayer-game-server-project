@@ -1,3 +1,5 @@
+const GameLobbySettings = require('./Lobbies/GameLobbySettings');
+
 module.exports = class Connection{
     constructor(){
         this.socket;
@@ -18,6 +20,22 @@ module.exports = class Connection{
 
         socket.on('JoinGame', function(){
             server.OnAttemptToJoinGame(connection);
+        });
+
+        socket.on('CreateGame', function(data){
+            if(data.password != null && data.maxplayers != null && data.gamemode != null){
+                let pass = data.password;
+                let gamemode = data.gamemode;
+                let Maxplayers = data.maxplayers;
+
+                let config = new GameLobbySettings(gamemode, Maxplayers);
+                config.isPlayerGenerated = true;
+
+                let LobbyId = server.CreateLobbyPrivate(config, pass, connection);
+            }
+            else{
+                console.log("there was a problem with the request");
+            }
         });
 
         socket.on('JoinGamePrivate', function(data){

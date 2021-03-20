@@ -13,6 +13,7 @@ module.exports = class GameLobby extends LobbyBase {
         this.settings = setting;
         this.password = null;
         this.public_chat = [];
+        this.IsServerGenerated = null;
     }   
 
     CanEnterLobby(connection = Connection){
@@ -38,6 +39,11 @@ module.exports = class GameLobby extends LobbyBase {
         //spawning;
 
         lobby.addPlayer(connection);
+    }
+
+    SendConnectionVerification(connection = Connection, id_){
+        let lobby = this;
+        connection.socket.emit('CreationSuccessfull', {id: id_});
     }
 
     GetLobbyConnections(connection = Connection){

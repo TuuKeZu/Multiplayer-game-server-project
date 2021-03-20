@@ -9,6 +9,7 @@
   "author": "TuuKeZu",
   "license": "ISC",
   "dependencies": {
+    "mysql": "^2.18.1",
     "nodemon": "^2.0.7",
     "shortid": "^2.2.16",
     "socket.io": "^2.4.1",
