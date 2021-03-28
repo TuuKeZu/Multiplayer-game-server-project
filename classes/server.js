@@ -150,7 +150,6 @@ module.exports = class Server {
         }
     } 
 
-    //for lobby without password
     CreateLobbyOpen(settings = GameLobbySettings, connection = Connection){
         let server = this;
         let id = shortid.generate();
@@ -162,10 +161,10 @@ module.exports = class Server {
         server.lobby_IDs[server.lobby_IDs.length +1] = id;
 
         ServerConsole.LogEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id, null, null);
+        ServerConsole.LogServerEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id, gamelobby.id);
         server.OnSwitchLobby(connection, id);
     }
 
-    //for lobby with password
     CreateLobbyPrivate(settings = GameLobbySettings, password, connection = Connection_){
         let server = this;
         let id = shortid.generate();
@@ -215,7 +214,7 @@ module.exports = class Server {
             for (let index = 0; index < this.lobby_IDs.length; index++) {
                 if(this.lobby_IDs[index] == target.id){
                     this.lobby_IDs.splice(index, 1);
-                    ServerConsole.LogEvent("Successfully deleted the lobby!");
+                    ServerConsole.LogEvent("Successfully deleted the lobby!", lobby.id);
                 }
                 
             }

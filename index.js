@@ -6,6 +6,9 @@
 const io = require('socket.io')(process.env.PORT || 52300);  
 const Server = require('./classes/server.js');
 
+const Login_System = require('./classes/Login-System');
+const LoginSystem = new Login_System();
+
 let GameLobbySettings = require('./classes/Lobbies/GameLobbySettings');
 
 const Console = require('./classes/console');
@@ -18,10 +21,14 @@ const fs = require('fs');
 
 const Debug = require('./classes/debug');
 const MySQL = require('./classes/MySQLconnection');
+const { settings } = require('cluster');
 const DEBUG = new Debug();
 
 ServerConsole.LogEvent("Server started", null, 0);
 fs.writeFile('Server_Logs.txt', "Server has been started"+"\n", (err) => {
+    if(err) throw err;
+});
+fs.writeFile('Chat_Logs.txt', "Server has been started"+"\n", (err) => {
     if(err) throw err;
 });
 
@@ -82,7 +89,7 @@ process.stdin.on('data', function (text) {
 
 if (console_array[0].trim() === 'msg') {
     if(console_array[1] != null && console_array[2] != null){
-        msg(console_array[1], console[2]);
+        msg(console_array[1], console_array[2]);
     }
     else{
         ServerConsole.LogEvent("Invalid arguments", null, 2);
@@ -90,8 +97,11 @@ if (console_array[0].trim() === 'msg') {
 }
 
 if (text.trim() === 'mysql') { //jos konsoliin kirjoitetaan "mysql", jotain tapahtuu.
-    mySQL.database = 'multiplayer-game-database';
-    mySQL.CreateConnection();
+    LoginSystem.LoginToAccount('test', 'test1');
+}
+
+if (text.trim() === 'crash') { 
+    debug.log(dasöälkädsöfk);
 }
 
   if (console_array[0].trim() === 'create') {
@@ -103,12 +113,52 @@ if (text.trim() === 'mysql') { //jos konsoliin kirjoitetaan "mysql", jotain tapa
     }
 }
 
+if (console_array[0].trim() === 'createA') {
+    if(console_array[1] != null && console_array[2] != null){
+        LoginSystem.CreateToAccount(console_array[1], console_array[2], 'default@gmail.com');
+    }
+    else{
+        ServerConsole.LogEvent("Invalid command argument!", null, 2);
+    }
+}
+
+if (console_array[0].trim() === 'kill') {
+    if(console_array[1] != null){
+        Kill(console_array[1])
+    }
+    else{
+        ServerConsole.LogEvent("Invalid arguments", null, 2);
+    }
+}
+
+if (console_array[0].trim() === 'find') {
+    if(console_array[1] != null){
+        Find(console_array[1])
+    }
+    else{
+        ServerConsole.LogEvent("Invalid arguments", null, 2);
+    }
+}
+
+
+
 });
 
 //server side functions
 
 function quit() {
     ServerConsole.LogEvent('Server shut down!', null, 2);
+    ServerConsole.LogEvent("Server shutting down...", null, 2);
+    for (let index = 0; index < server.connection_IDs.length; index++) {
+        let tempID = server.connection_IDs[index];
+
+        if(server.connections[tempID] != null){
+            var connection = server.connections[tempID];
+            Kick(tempID, "server shutting down");
+            ServerConsole.LogEvent("Kicked : "+connection.player.id, null, 2);
+        }
+        
+    }
     process.exit();
 }
 
@@ -116,11 +166,15 @@ function quit() {
 function LobbyList(){
     ServerConsole.LogEvent("Heres a list of open lobbies at the moment:", null, 0);
     for (let index = 0; index < server.lobby_IDs.length; index++) {
-        ServerConsole.LogEvent(server.lobby_IDs[index + 1], null);
+        if(server.lobby_IDs[index] != null){
+            ServerConsole.LogEvent(server.lobby_IDs[index]+" : "+server.lobbies[server.lobby_IDs[index]].isServerGenerated, null);
+        }
     }
 }
 function CreateLobby(password, maxPlayers){
-    server.CreateLobbyPrivate(new GameLobbySettings('NORMAL', maxPlayers), password, null);
+    let settings = new GameLobbySettings('NORMAL', maxPlayers);
+    settings.isPlayerGenerated = false;
+    server.CreateLobbyPrivate(settings, password, null);
 }
 
 function connectionList(){
@@ -145,10 +199,20 @@ function GetConnectionData(id){
         ServerConsole.LogEvent("No connection with ["+'"'+id+'"'+"] was found", null, 1);
     }
 }
-function Kick(id){
+function Kick(id, reason){
     returnData = server.connections[id.trim()];
+    if(reason == null){
+        reason == "404";
+    }
+
     if(returnData != null){
-        returnData.socket.emit('Kicked');
+        
+        var data = {
+            id: returnData.player.id,
+            reason: reason
+        }
+
+        returnData.socket.emit('Kicked', data);
         returnData.socket.disconnect();
     }
     else{
@@ -166,7 +230,34 @@ function msg(id, content){
     }
 }
 
+function Kill(id) {
+    returnData = server.connections[id.trim()];
+    if(returnData != null){
+        returnData.lobby.KillClient(returnData);
+    }
+    else{
+        ServerConsole.LogEvent("No connection with ["+'"'+id+'"'+"] was found", null, 1);
+    }
+}
 
+function Find(username) {
+    for (let index = 0; index < server.connection_IDs.length; index++) {
+        if(server.connection_IDs[index+1] != null){
+            var tempID = server.connection_IDs[index + 1].trim();
+
+            if(server.connections[tempID] != null){
+                var target = server.connections[tempID];
+    
+                if(target.player.username == username.trim()){
+                    ServerConsole.LogEvent("Found player : "+username.trim()+" with ID of ["+target.player.id+"]", null, 1);
+                }
+            }
+        }
+        
+    }
+}
+
+//#region 
 /*
 var Player_list = []; 
 var socket_list = []; 
@@ -215,28 +306,6 @@ io.on('connection', function(socket) {
     if(Player_Count > MaxPlayers){ 
         Disconnect();
     }
-
-    
-    
-    //position packets
-
-    socket.on('UpdatePosition', function(data) {
-        if(player.IsAlive){
-            player.position.x = data.position.X;
-            player.position.y = data.position.Y;
-            player.position.z = data.position.Z;
-            
-    
-            socket.broadcast.emit('UpdatePosition', player);
-            //server_log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+player.lookingAt+"]."); //käytetään koodin debuggaamiseen. Printtaa kaikkien liittyneiden liikeradat
-        }
-        
-    });
-
-    socket.on('UpdateTarget', function(data) {
-        player.lookingAt = data.target;
-        //server_log("Client ["+thisPlayerID+"] is looking at: ["+player.lookingAt+"].");nod
-    });
 
     socket.on('SendAttackPacket', function(data) {
     if(player.IsAlive){
@@ -480,66 +549,41 @@ io.on('connection', function(socket) {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Console Manager
-
-    //0 = green
-    //1 = yellow
-    //2 = red
-    //3 = white
-
-    function server_log(content, type){
-        let currentDate = new Date();
-        let time = currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
-        var content = "["+time+"] "+content;
-        if(type == null){
-            console.log('\u001b[' + 90 + 'm' + content + '\u001b[0m');
-        }
-        if(type == 0){
-            console.log('\u001b[' + 32 + 'm' + content + '\u001b[0m');
-        }
-        if(type == 1){
-            console.log('\u001b[' + 93 + 'm' + content + '\u001b[0m');
-        }
-        if(type == 2){
-            console.log('\u001b[' + 31 + 'm' + content + '\u001b[0m');
-        }
-        if(type == 3){
-            console.log(content);
-        }
-    }
-
-
-    function serverLogs_log(content){
-        let currentDate = new Date();
-        let time = currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
-        content_array = content.split('/');
-        for (let index = 0; index < content_array.length; index++) {
-            if(content_array[index] != null){
-                var content_ = "["+time+"] "+content_array[index]+"\n";
-                fs.appendFile('server_logs.txt', content_, (err) => {
-                    if(err) throw err;
-                });    
-            }     
-            
-        }
-    }
-
+//#endregion
 */
+
+
+
+//Error handeling:
+
+process.on('uncaughtException', (error)  => {
+   
+    ServerConsole.LogEvent("Server shutting down...", null, 2);
+    for (let index = 0; index < server.connection_IDs.length; index++) {
+        let tempID = server.connection_IDs[index];
+
+        if(server.connections[tempID] != null){
+            var connection = server.connections[tempID];
+            Kick(tempID, "server shutting down");
+            ServerConsole.LogEvent("Kicked : "+connection.player.id, null, 2);
+        }
+        
+    }
+    throw(error);
+    process.exit(1); // exit application 
+
+});
+
+process.on('SIGINT', signal => {
+    for (let index = 0; index < server.connection_IDs.length; index++) {
+        let tempID = server.connection_IDs[index];
+
+        if(server.connections[tempID] != null){
+            var connection = server.connections[tempID];
+            Kick(tempID, "server shutting down");
+            ServerConsole.LogEvent("Kicked : "+connection.player.id, null, 2);
+        }
+        
+    }
+    process.exit(0)
+})

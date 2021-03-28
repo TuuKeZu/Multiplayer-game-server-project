@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 module.exports = class Server {
     constructor(){
     }
@@ -26,6 +28,24 @@ module.exports = class Server {
         if(colorcode == 3){
             console.log(log_content);
         }
+    }
+
+    LogChatEvent(content, lobby){
+        let currentDate = new Date();
+        let time = currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
+        
+        fs.appendFile('Chat_Logs.txt', "["+time+"]["+lobby+"]"+content+"\n", (err) => {
+            if(err) throw err;
+        });
+    }
+
+    LogServerEvent(content, lobby){
+        let currentDate = new Date();
+        let time = currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
+        
+        fs.appendFile('Server_Logs.txt', "["+time+"]["+lobby+"]"+content+"\n", (err) => {
+            if(err) throw err;
+        });
     }
 
     
