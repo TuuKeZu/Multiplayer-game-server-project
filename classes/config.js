@@ -13,6 +13,8 @@ module.exports = class config{
                 returndata.show_attack_packets = CONFIG[0].debug.show_attack_packets;
                 returndata.show_look_packets = CONFIG[0].debug.show_look_packets;
                 returndata.show_join_requests = CONFIG[0].debug.show_join_requests;
+                returndata.show_chat = CONFIG[0].debug.show_chat;
+                returndata.show_lobby_events = CONFIG[0].debug.show_lobby_events;
 
                 returndata.send_crash_reports = CONFIG[0].utility.send_crash_reports;
 

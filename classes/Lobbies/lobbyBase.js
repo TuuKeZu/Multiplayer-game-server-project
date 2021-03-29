@@ -1,6 +1,9 @@
 const Console = require('../console');
 const ServerConsole = new Console();
 
+const config = require('../config');
+const C = new config();
+
 let Connection = require('../connection');
 
 module.exports = class LobbyBase{
@@ -13,8 +16,13 @@ module.exports = class LobbyBase{
     OnEnterLobby(connection = Connection){
         let lobby = this;
         let player = connection.player;
-
-        ServerConsole.LogEvent("Client ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_lobby_events){
+                ServerConsole.LogEvent("Client ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+            }
+        });
+        //#endregion 
 
         lobby.connections.push(connection);
         lobby.connection_IDs.push(player.id);
@@ -41,6 +49,12 @@ module.exports = class LobbyBase{
         if(index2 > -1){
             lobby.connection_IDs.splice(index2, 1);
         }
-        ServerConsole.LogEvent("Client have left the lobby!", lobby.id, 1);
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_lobby_events){
+                ServerConsole.LogEvent("Client have left the lobby!", lobby.id, 1);
+            }
+        });
+        //#endregion 
     }
 }

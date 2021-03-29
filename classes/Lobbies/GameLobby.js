@@ -119,7 +119,13 @@ module.exports = class GameLobby extends LobbyBase {
                 
         }
 
-        ServerConsole.LogEvent("["+connection.player.id+"]<"+username+">: "+message+"", this.id, 3);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_chat){
+                    ServerConsole.LogEvent("["+connection.player.id+"]<"+username+">: "+message+"", lobby.id, 3);
+                }
+            });
+            //#endregion 
         ServerConsole.LogChatEvent("["+username+"]: "+message, this.id);
         this.public_chat.push("["+username+"]: "+message);
     
@@ -148,7 +154,6 @@ module.exports = class GameLobby extends LobbyBase {
             C.Get(function(data){
                 if(data.show_look_packets){
                     ServerConsole.LogEvent("Client ["+player.id+"] is looking at: ["+player.lookingAt+"].");
-                    return false;
                 }
             });
             //#endregion 
@@ -159,7 +164,7 @@ module.exports = class GameLobby extends LobbyBase {
         if(connection == null || !connection.player.IsAlive){
             //#region DEBUG
             C.Get(function(data){
-                if(data.show_position_packets){
+                if(data.show_movement_packets){
                     ServerConsole.LogEvent("Client Error", lobby.id, 2);
                 }
             });
@@ -177,8 +182,8 @@ module.exports = class GameLobby extends LobbyBase {
             socket.broadcast.to(lobby.id).emit('UpdatePosition', player);
 
             //#region DEBUG
-            C.Get(function(data){
-                if(data.show_position_packets){
+            C.Get(function(data1){
+                if(data1.show_movement_packets){
                     console.log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+connection.player.lookingAt+"].");
                 }
             });
@@ -291,7 +296,13 @@ module.exports = class GameLobby extends LobbyBase {
 
 
         if(lobby.connection_count  < 1){
-            ServerConsole.LogEvent("Cannot start game : too few players");
+                //#region DEBUG
+                C.Get(function(data){
+                    if(data.show_lobby_events){
+                        ServerConsole.LogEvent("Cannot start game : too few players");
+                    }
+                });
+                //#endregion 
             return;
         }
 
@@ -313,7 +324,13 @@ module.exports = class GameLobby extends LobbyBase {
                 target.IsAlive = false;
 
                 target.team = "RED";
-                ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 2);
+                //#region DEBUG
+                C.Get(function(data){
+                    if(data.show_lobby_events){
+                        ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 2);
+                    }
+                });
+                //#endregion 
                 targetSocket.emit('SetTeam', target);
                 targetSocket.broadcast.to(lobby.id).emit('SetTeam', target);
 
@@ -335,7 +352,13 @@ module.exports = class GameLobby extends LobbyBase {
                 target.IsAlive = false;
 
                 target.team = "BLUE";
-                ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 0);
+                //#region DEBUG
+                C.Get(function(data){
+                    if(data.show_lobby_events){
+                        ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 0);
+                    }
+                });
+                //#endregion 
                 targetSocket.emit('SetTeam', target);
                 targetSocket.broadcast.emit('SetTeam', target);
 
@@ -374,12 +397,25 @@ module.exports = class GameLobby extends LobbyBase {
         targetSocket.broadcast.to(lobby.id).emit('UpdatePosition', target);
         targetSocket.emit('Die', target);
 
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_lobby_events){
+                ServerConsole.LogEvent("Killed client : "+connection.player.id, null, 2);
+            }
+        });
+        //#endregion 
 
-        ServerConsole.LogEvent("Killed client : "+connection.player.id, null, 2);
         setTimeout(() => {
             this.Respawn(connection)
         }, 1000);
-        ServerConsole.LogEvent("Revived client", null, 0);
+
+        //#region DEBUG
+            C.Get(function(data){
+                if(data.show_lobby_events){
+                    ServerConsole.LogEvent("Revived client", null, 0);
+                }
+            });
+        //#endregion 
 
     }
 
@@ -404,12 +440,9 @@ module.exports = class GameLobby extends LobbyBase {
 
     Respawn(connection = Connection){
         let lobby = this;
-        ServerConsole.LogEvent("respawning");
         let target = connection;
 
         let targetSocket = target.socket;
-
-        ServerConsole.LogEvent("respawning...");
 
         target.player.health = 100;
         targetSocket.emit('UpdateHealth', target.player);
@@ -429,7 +462,6 @@ module.exports = class GameLobby extends LobbyBase {
         lobby.removePlayer(connection);
 
         lobby.connection_count -= 1;
-        ServerConsole.LogEvent("Updated the lobby connection count : "+lobby.connection_count);
     }
 
     addPlayer(connection = Connection){
@@ -441,7 +473,13 @@ module.exports = class GameLobby extends LobbyBase {
             id: connection.player.id,
             username: connection.player.username
         }
-        ServerConsole.LogEvent("spawned the player!", this.id, 0);
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_lobby_events){
+                ServerConsole.LogEvent("spawned the player!", this.id, 0);
+            }
+        });
+        //#endregion 
 
         socket.broadcast.to(lobby.id).emit('spawn', returnData);
 

@@ -44,9 +44,7 @@ setInterval(() => {
     server.OnLobbyCheck();
 }, 5000);
 
-DEBUG.ShowAttackpackets = false;
-DEBUG.ShowPLayersTargetData = false;
-DEBUG.ShowPlayersMovementData = false;
+let CanSendCrashReport;
 
 io.on('connection', function(socket){
     let connection = server.OnConnected(socket);
@@ -298,8 +296,11 @@ function GetLobbyConnections(lobby_ID) {
 //Error handeling:
 
 async function SendCrashReport(error){
-    Discord.LogEvent(error, "CRASH");
-    ServerConsole.LogEvent("Sent crash report");
+    if(CanSendCrashReport != false){
+        Discord.LogEvent(error, "CRASH");
+        ServerConsole.LogEvent("Sent crash report");
+        CanSendCrashReport = false;
+    }
 }
 
 process.on('uncaughtException', (error)  => {

@@ -4,8 +4,9 @@
         "show_movement_packets": false,
         "show_attack_packets": false,
         "show_look_packets": false,
-        "show_chat": false,
-        "show_join_requests": false
+        "show_chat": true,
+        "show_join_requests": false,
+        "show_lobby_events": false
     },
     "utility": {
         "send_crash_reports": false

@@ -1,3 +1,2 @@
 Server has been started
-[19:4:59][cKyq9KF38]successfully created a new GameLobby with an ID of : cKyq9KF38
-[19:6:19][rVkS6lKkcO]successfully created a new GameLobby with an ID of : rVkS6lKkcO
+[19:42:22][abQav7iUc]successfully created a new GameLobby with an ID of : abQav7iUc
