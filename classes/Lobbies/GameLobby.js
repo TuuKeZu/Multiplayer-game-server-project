@@ -1,8 +1,13 @@
+//Copyright 2021, Tuukka Moilanen, All rights recerved
+
 const Console = require('../console');
 const ServerConsole = new Console();
 
 const Debug = require('../debug');
 const DEBUG = new Debug();
+
+const config = require('../config');
+const C = new config();
 
 const fs = require('fs');
 
@@ -17,6 +22,7 @@ module.exports = class GameLobby extends LobbyBase {
         this.password = null;
         this.public_chat = [];
         this.IsServerGenerated = null;
+        this.connection_count = 0;
     }   
 
     CanEnterLobby(connection = Connection){
@@ -24,14 +30,14 @@ module.exports = class GameLobby extends LobbyBase {
         let maxPlayerCount = lobby.settings.maxPlayerCount;
         let CurrentPlayerCount = lobby.connections.length;
 
-        if(CurrentPlayerCount + 1 > maxPlayerCount){
-            ServerConsole.LogEvent("Connection to lobby ["+lobby.id+"] was declined. Reason : too many players!", null, null);
-            return false;
-        }
-        else{
-            ServerConsole.LogEvent("Connection to lobby ["+lobby.id+"] was allowed since this lobby's connection count is : "+CurrentPlayerCount+"/"+maxPlayerCount, null, null);
-            return true;
-        }
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_join_requests){
+                ServerConsole.LogEvent("Connection to lobby ["+lobby.id+"] was declined. Reason : too many players!", null, null);
+                return false;
+            }
+        });
+        //#endregion 
     }
 
     OnEnterLobby(connection = Connection){
@@ -46,6 +52,8 @@ module.exports = class GameLobby extends LobbyBase {
         }
         
         connection.socket.emit('spawn', returnData);
+
+        lobby.connection_count += 1;
     }
 
     SendConnectionVerification(connection = Connection, id_){
@@ -66,13 +74,26 @@ module.exports = class GameLobby extends LobbyBase {
         connection.player.username = data.username; 
         socket.emit('verify', connection.player); 
         lobby.addPlayer(connection);
-
-        ServerConsole.LogEvent("Handshake received! username: "+data.username, this.id, 1);
+        //#region DEBUG
+        C.Get(function(data){
+            if(data.show_join_requests){
+                ServerConsole.LogEvent("Handshake received! username: "+data.username, lobby.id, 1);
+                return false;
+            }
+        });
+        //#endregion 
     }
 
     SendMessageToLobby(connection = Connection, data){
         if(connection == null || !connection.player.IsAlive){
-            ServerConsole.LogEvent("Client Error", this.id, 2);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_chat){
+                    ServerConsole.LogEvent("Client Error", lobby.id, 2);
+                    return false;
+                }
+            });
+            //#endregion 
             return;
         }
         let lobby = this;
@@ -88,7 +109,7 @@ module.exports = class GameLobby extends LobbyBase {
             array = message.split(' ');
             ServerConsole.LogEvent("Command was ran", 1);
                 if(message == "/start"){
-                    
+                    lobby.StartGame(connection);
                 }
                 if(message.lastIndexOf("/kick", 0) === 0){
                     if(array[1] != null){
@@ -109,20 +130,40 @@ module.exports = class GameLobby extends LobbyBase {
 
     UpdateTarget(connection = Connection, data){
         if(connection == null || !connection.player.IsAlive){
-            ServerConsole.LogEvent("Client Error", this.id, 2);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_look_packets){
+                    ServerConsole.LogEvent("Client Error", lobby.id, 2);
+                    return false;
+                }
+            });
+            //#endregion 
             return;
         }
         let lobby = this;
         let player = connection.player;
 
         player.lookingAt = data.target;
-        //ServerConsole.LogEvent("Client ["+player.id+"] is looking at: ["+player.lookingAt+"].");
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_look_packets){
+                    ServerConsole.LogEvent("Client ["+player.id+"] is looking at: ["+player.lookingAt+"].");
+                    return false;
+                }
+            });
+            //#endregion 
     }
 
     UpdatePosition(connection = Connection, data){
         //Error Checking
         if(connection == null || !connection.player.IsAlive){
-            ServerConsole.LogEvent("Client Error", this.id, 2);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_position_packets){
+                    ServerConsole.LogEvent("Client Error", lobby.id, 2);
+                }
+            });
+            //#endregion 
             return;
         }
         let lobby = this;
@@ -135,16 +176,27 @@ module.exports = class GameLobby extends LobbyBase {
 
             socket.broadcast.to(lobby.id).emit('UpdatePosition', player);
 
-            if(DEBUG.ShowPlayersMovementData){
-                console.log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+connection.player.lookingAt+"].");
-            }
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_position_packets){
+                    console.log("Client ["+data.ID+"] position is equal to : "+data.position.X + ","+data.position.Y+","+data.position.Z+" : Player is looking at: ["+connection.player.lookingAt+"].");
+                }
+            });
+            //#endregion 
         }
         
     }
 
     SendAttackPacket(connection = Connection, data){
+        let lobby = this
         if(connection == null || !connection.player.IsAlive){
-            ServerConsole.LogEvent("Client Error", this.id, 2);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_attack_packets){
+                    ServerConsole.LogEvent("Client Error", lobby.id, 2);
+                }
+            });
+            //#endregion 
             return;
         }
 
@@ -153,7 +205,13 @@ module.exports = class GameLobby extends LobbyBase {
         let ID;
 
         if(damage > 70 || damage < 1){
-            ServerConsole.LogEvent("Client Error : damage is invalid", this.id, 2);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_attack_packets){
+                    ServerConsole.LogEvent("Client Error : damage is invalid", lobby.id, 2);
+                }
+            });
+            //#endregion 
             return;
         }
 
@@ -163,7 +221,13 @@ module.exports = class GameLobby extends LobbyBase {
             let Packet_Sender = thisPlayerID;
             let packet_effected = connection.player.lookingAt;
 
-            ServerConsole.LogEvent(packet_effected+" Got shot by : "+Packet_Sender+" : "+data.damage, this.id, null);
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_attack_packets){
+                    ServerConsole.LogEvent(packet_effected+" Got shot by : "+Packet_Sender+" : "+data.damage, lobby.id, null);
+                }
+            });
+            //#endregion 
 
             for (let index = 0; index < this.connections.length; index++) {
                 if(this.connections[index].player.id == packet_effected){
@@ -173,14 +237,20 @@ module.exports = class GameLobby extends LobbyBase {
             }
 
             if(playerfound){
-                ServerConsole.LogEvent(packet_effected+" Got shot by : "+Packet_Sender, this.id, null);
+                //#region DEBUG
+                C.Get(function(data){
+                    if(data.show_attack_packets){
+                        ServerConsole.LogEvent(packet_effected+" Got shot by : "+Packet_Sender, lobby.id, null);
+                    }
+                });
+                //#endregion 
 
                 if(packet_effected != thisPlayerID){
                     //PAYLOAD
                     let target = this.connections[ID];
                     let socket = target.socket;
 
-                    ServerConsole.LogEvent(target.player.health, null, 3);
+                    //ServerConsole.LogEvent(target.player.health, null, 3);
 
                     target.player.health -= damage;
 
@@ -201,13 +271,93 @@ module.exports = class GameLobby extends LobbyBase {
                 }
             }
             else{
-                ServerConsole.LogEvent("Player was not found with an ID of : '"+packet_effected+"'/"+this.connections.length);
+                //#region DEBUG
+                C.Get(function(data){
+                    if(data.show_attack_packets){
+                        ServerConsole.LogEvent("Player was not found with an ID of : '"+packet_effected+"'/"+lobby.connections.length);
+                    }
+                });
+                //#endregion 
             }
         }
         else{
             
         }
     }
+
+    StartGame(connection = Connection){
+        let lobby = this;
+        let socket = connection.socket;
+
+
+        if(lobby.connection_count  < 1){
+            ServerConsole.LogEvent("Cannot start game : too few players");
+            return;
+        }
+
+        ServerConsole.LogEvent("Game have ben started!", lobby.is, 0);
+
+        socket.emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
+        socket.broadcast.to(lobby.id).emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
+
+
+        //RANDOM PARTIES
+
+        for (let index = 0; index < lobby.connection_IDs.length; index++) {
+            if(index+1 % 2 == 1){
+                
+                let id = lobby.connection_IDs[index];
+                let target = lobby.connections[index].player;
+                let targetSocket = lobby.connections[index].socket;
+
+                target.IsAlive = false;
+
+                target.team = "RED";
+                ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 2);
+                targetSocket.emit('SetTeam', target);
+                targetSocket.broadcast.to(lobby.id).emit('SetTeam', target);
+
+                lobby.TeleportClient(lobby.connections[index], 77.855, -3.06, 33.191);
+
+                setTimeout(() => {
+                    targetSocket.emit('Respawn', target);
+                    target.IsAlive = true;
+                }, 500);
+
+            }
+            
+            else{
+                
+                let id = lobby.connection_IDs[index];
+                let target = lobby.connections[index].player;
+                let targetSocket = lobby.connections[index].socket;
+
+                target.IsAlive = false;
+
+                target.team = "BLUE";
+                ServerConsole.LogEvent("["+target.username+"] was assinged to the blue team!", null, 0);
+                targetSocket.emit('SetTeam', target);
+                targetSocket.broadcast.emit('SetTeam', target);
+
+                lobby.TeleportClient(lobby.connections[index],-26, -3.06, -71.8);
+
+                targetSocket.broadcast.to(lobby.id).emit('UpdatePosition', target);
+                targetSocket.emit('Move', target);
+
+                setTimeout(() => {
+                    targetSocket.emit('Respawn', target);
+                    target.IsAlive = true;
+                }, 500);
+
+            }
+            
+        }   
+        
+
+        //Gamedata.have_started = true;
+    
+    }
+
 
     KillClient(connection = Connection){
         let lobby = this;
@@ -253,6 +403,7 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     Respawn(connection = Connection){
+        let lobby = this;
         ServerConsole.LogEvent("respawning");
         let target = connection;
 
@@ -276,6 +427,9 @@ module.exports = class GameLobby extends LobbyBase {
         super.OnExitLobby(connection);
 
         lobby.removePlayer(connection);
+
+        lobby.connection_count -= 1;
+        ServerConsole.LogEvent("Updated the lobby connection count : "+lobby.connection_count);
     }
 
     addPlayer(connection = Connection){

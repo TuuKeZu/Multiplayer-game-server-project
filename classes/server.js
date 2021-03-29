@@ -1,6 +1,11 @@
 const Console = require('./console');
 const ServerConsole = new Console();
 
+const config = require('./config');
+const C = new config();
+
+const Config = true;
+
 
 let Connection_ = require('./connection');
 let Player = require('./player');
@@ -17,6 +22,7 @@ module.exports = class Server {
         this.lobbies = [];
         this.lobby_IDs = [];
         this.connection_IDs = [];
+        this.config = Config;
 
         this.lobbies[0] = new LobbyBase(0);
     }
@@ -31,8 +37,12 @@ module.exports = class Server {
         let lobbies = this.lobbies;
 
         this.connections[player.id] = connection;
-
-        ServerConsole.LogEvent("Added connection : ["+player.id+"] To the server! Connections lenght is now: "+this.connections.length+"... mitä");
+        if(Config.show_join_requests){
+            ServerConsole.LogEvent("Added connection : ["+player.id+"] To the server! Connections lenght is now: "+this.connections.length+"... mitä");
+        }
+        else{
+            ServerConsole.LogEvent("Added connection : ["+player.id+"] To the server! Connections lenght is now: "+this.connections.length+"... mitä");
+        }
 
         this.connection_IDs[this.connection_IDs.length + 1] = player.id;
 
@@ -55,8 +65,9 @@ module.exports = class Server {
             this.connection_IDs.splice(index, 1);
             this.connection_IDs.length -= 1;
         }
-
-        ServerConsole.LogEvent("Client Have disconnected", connection.lobby.id, 2);
+        if(Config.show_join_requests){
+            ServerConsole.LogEvent("Client Have disconnected", connection.lobby.id, 2);
+        }
 
         connection.socket.broadcast.to(connection.player.lobby).emit('disconnected', {
             id: id
@@ -72,7 +83,9 @@ module.exports = class Server {
         let GameLobbies = server.lobbies.filter(item => {
             return item instanceof Gamelobby;
         })
-        ServerConsole.LogEvent("Found a total of : "+GameLobbies.length+"/"+server.lobbies.length+" from the server!", connection.lobby.id, null);
+        if(Config.show_join_requests){
+            ServerConsole.LogEvent("Found a total of : "+GameLobbies.length+"/"+server.lobbies.length+" from the server!", connection.lobby.id, null);
+        }
 
         for (let index = 0; index < server.lobby_IDs.length; index++) {
             if(!LobbyFound){
@@ -80,19 +93,25 @@ module.exports = class Server {
 
                 if(server.lobbies[lobbyID] != null){
                     let CanJoin = server.lobbies[lobbyID].CanEnterLobby(connection);
-                    ServerConsole.LogEvent("found one lobby");
+                    if(Config.show_join_requests){
+                        ServerConsole.LogEvent("found one lobby");
+                    }
                     
                     if(CanJoin){
                         LobbyFound = true;
                         server.OnSwitchLobby(connection, lobbyID);
                     }
                     else{
-                        ServerConsole.LogEvent("lobby ["+lobbyID+"] was full");
+                        if(Config.show_join_requests){
+                            ServerConsole.LogEvent("lobby ["+lobbyID+"] was full");
+                        }
                     }
                 }
                 else{
-                    ServerConsole.LogEvent("there was a problem finding an lobby with an ID of : "+lobbyID);
-                }
+                    if(Config.show_join_requests){
+                        ServerConsole.LogEvent("there was a problem finding an lobby with an ID of : "+lobbyID);
+                    }
+                }   
             }
             
         }

@@ -5,6 +5,7 @@ const Console = require('./console');
 const ServerConsole = new Console();
 
 const crypto = require('crypto'); //sisäänrakennettu kirjasto
+const { callbackify } = require('util');
 
 module.exports = class Login_System {
     constructor(){
@@ -27,24 +28,34 @@ module.exports = class Login_System {
         ServerConsole.LogEvent("Created a new account : "+user, null, 1);
     }
 
-    LoginToAccount(username, password){
+    LoginToAccount(username, password, callback){
         Connection.database = 'multiplayer-game-database';
         Connection.CreateConnection();
 
-        var MYSQL_request = "SELECT user_name, user_password FROM user_schema WHERE user_name = '"+username+"'";
+        var MYSQL_request = "SELECT * FROM user_schema WHERE user_name = '"+username+"'";
         Connection.con.query(MYSQL_request, function(err, results, fields){
+            ServerConsole.LogEvent(results[0].user_password);
             if (err) return false;
             
             if(username == results[0].user_name){
                 ServerConsole.LogEvent("Username match");
 
-                if(password == results[0].user_password){
+                if(password.trim() == results[0].user_password.trim()){
                     ServerConsole.LogEvent("Password match");
-                    return results[0].user_JsonData;
+
+                    
+
+                    var user_data = {};
+                    user_data.username = results[0].user_name;
+                    user_data.user_uid = results[0].user_uid;
+                    user_data.user_JSON = results[0].user_JsonData;
+
+                    return callback(user_data)
+
                 }
                 else{
                     ServerConsole.LogEvent("Password is incorrect!");
-                    return false;
+                    return callback(false);
                 }
             }
             

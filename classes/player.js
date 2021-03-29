@@ -4,7 +4,10 @@ const _Vector3 = require("./vector3.js");
 module.exports = class Player {
     constructor() {
         this.username = 'Default_Player';
+        this.uid = null;
+        this.IsQuest = true;
         this.id = shortID.generate();
+
         this.lobby = 0;
         this.position = new _Vector3();
         this.health = 100;

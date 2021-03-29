@@ -1,0 +1,15 @@
+[
+{
+    "debug": {
+        "show_movement_packets": false,
+        "show_attack_packets": false,
+        "show_look_packets": false,
+        "show_chat": false,
+        "show_join_requests": false
+    },
+    "utility": {
+        "send_crash_reports": false
+    }
+    
+}
+]

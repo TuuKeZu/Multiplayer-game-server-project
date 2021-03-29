@@ -1,3 +1,9 @@
+const Login_System = require('./Login-System');
+const LoginSystem = new Login_System();
+
+const Console = require('./console');
+const ServerConsole = new Console();
+
 const GameLobbySettings = require('./Lobbies/GameLobbySettings');
 
 module.exports = class Connection{
@@ -16,6 +22,28 @@ module.exports = class Connection{
 
         socket.on('disconnect', function(data){
             server.OnDisconnected(connection);
+        });
+
+        socket.on('login', function(data){
+            ServerConsole.LogEvent("new client is logging in... ");
+            if(data != null && data.username != null && data.password != null){
+
+                LoginSystem.LoginToAccount(data.username, data.password, function(data){
+
+                    if(data != false){
+                        connection.player.username = data.username;
+                        connection.player.IsQuest = false;
+                        connection.player.uid = data.user_uid;
+                        ServerConsole.LogEvent("Login was succesfull!");
+    
+                        connection.socket.emit("loggedin");
+                    }
+                    else{
+                        ServerConsole.LogEvent("login session was invalid");
+                        connection.socket.emit("login_failed");
+                    }
+                });
+            }
         });
 
         socket.on('JoinGame', function(){
