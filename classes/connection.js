@@ -77,6 +77,10 @@ module.exports = class Connection{
         socket.on('UpdatePosition', function(data){
             connection.lobby.UpdatePosition(connection, data);
         });
+        socket.on('UpdateRotation', function(data){
+            //ServerConsole.LogEvent(data.rotation);
+            //connection.lobby.UpdateRotation(connection, data);
+        });
 
         socket.on('UpdateTarget', function(data){
             connection.lobby.UpdateTarget(connection, data);

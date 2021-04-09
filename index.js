@@ -44,6 +44,10 @@ setInterval(() => {
     server.OnLobbyCheck();
 }, 5000);
 
+setInterval(() => {
+    server.UpdateLobbyTick();
+}, 1000);
+
 let CanSendCrashReport;
 
 io.on('connection', function(socket){
@@ -341,17 +345,25 @@ process.on('uncaughtException', (error)  => {
 });
 
 process.on('SIGINT', signal => {
-    ServerConsole.LogEvent("Server shutting down...", null, 2);
-    for (let index = 0; index < server.connection_IDs.length; index++) {
-        let tempID = server.connection_IDs[index];
-        ServerConsole.LogEvent(server.connection_IDs[index]);
-
-        if(server.connections[tempID] != null){
-            var connection = server.connections[tempID];
-            Kick(tempID, "server shutting down");
-            ServerConsole.LogEvent("Kicked : "+connection.player.id, null, 2);
-        }
+    C.Get(function(data){
+        if(data.enable_CTRL_C){
+            ServerConsole.LogEvent("Server shutting down...", null, 2);
+            for (let index = 0; index < server.connection_IDs.length; index++) {
+                let tempID = server.connection_IDs[index];
+                ServerConsole.LogEvent(server.connection_IDs[index]);
         
-    }
-    process.exit(0)
+                if(server.connections[tempID] != null){
+                    var connection = server.connections[tempID];
+                    Kick(tempID, "server shutting down");
+                    ServerConsole.LogEvent("Kicked : "+connection.player.id, null, 2);
+                }
+                
+            }
+            process.exit(0)
+        }
+        else{
+            ServerConsole.LogEvent("CTRL + C is disabled on this server!");
+        }
+    });
+
 })

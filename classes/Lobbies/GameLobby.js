@@ -23,7 +23,25 @@ module.exports = class GameLobby extends LobbyBase {
         this.public_chat = [];
         this.IsServerGenerated = null;
         this.connection_count = 0;
-    }   
+        this.timeElapsed = 600;
+        this.HaveStarted;
+        this.BLUE_kills = 0;
+        this.RED_Kills = 0;
+    }  
+    
+    LobbyTick(){
+        let lobby = this;
+        if(lobby.HaveStarted){
+            lobby.timeElapsed -= 1;
+
+            for (let index = 0; index < this.connection_IDs.length+2; index++) {
+                let con = lobby.connections[index];
+                if(con != null){
+                    con.socket.emit('UpdateTimer', {timer: this.timeElapsed});
+                }
+            }
+        }
+    }
 
     CanEnterLobby(connection = Connection){
         let lobby = this;
@@ -75,8 +93,8 @@ module.exports = class GameLobby extends LobbyBase {
         socket.emit('verify', connection.player); 
         lobby.addPlayer(connection);
         //#region DEBUG
-        C.Get(function(data){
-            if(data.show_join_requests){
+        C.Get(function(data_){
+            if(data_.show_join_requests){
                 ServerConsole.LogEvent("Handshake received! username: "+data.username, lobby.id, 1);
                 return false;
             }
@@ -192,6 +210,40 @@ module.exports = class GameLobby extends LobbyBase {
         
     }
 
+    UpdateRotation(connection = Connection, data){
+        //Error Checking
+        if(connection == null || !connection.player.IsAlive){
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_rotation_packets){
+                    ServerConsole.LogEvent("Client Error", lobby.id, 2);
+                }
+            });
+            //#endregion 
+            return;
+        }
+        let lobby = this;
+        let socket = connection.socket;
+        let player = connection.player;
+
+        if(connection.player.IsAlive){
+            connection.player.rotation.x = data.rotation.X;
+            connection.player.rotation.y = data.rotation.Y;
+            connection.player.rotation.z = data.rotation.Z;
+
+            socket.broadcast.to(lobby.id).emit('UpdateRotation', player);
+
+            //#region DEBUG
+            C.Get(function(data1){
+                if(data1.show_rotation_packets){
+                    console.log("Client ["+data.ID+"] Rotation is equal to : "+data.rotation.X + ","+data.rotation.Y+","+data.rotation.Z+" : Player is looking at: ["+connection.player.lookingAt+"].");
+                }
+            });
+            //#endregion 
+        }
+        
+    }
+
     SendAttackPacket(connection = Connection, data){
         let lobby = this
         if(connection == null || !connection.player.IsAlive){
@@ -214,6 +266,16 @@ module.exports = class GameLobby extends LobbyBase {
             C.Get(function(data){
                 if(data.show_attack_packets){
                     ServerConsole.LogEvent("Client Error : damage is invalid", lobby.id, 2);
+                }
+            });
+            //#endregion 
+            return;
+        }
+        if(!this.HaveStarted){
+            //#region DEBUG
+            C.Get(function(data){
+                if(data.show_attack_packets){
+                    ServerConsole.LogEvent("Client Error : Game has not started yet!", lobby.id, 2);
                 }
             });
             //#endregion 
@@ -308,8 +370,11 @@ module.exports = class GameLobby extends LobbyBase {
 
         ServerConsole.LogEvent("Game have ben started!", lobby.is, 0);
 
-        socket.emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
-        socket.broadcast.to(lobby.id).emit("MessageEventReceived", {content: "[SERVER] Game is starting soon"});
+        socket.emit("MessageEventReceived", {content: "[SERVER]:You started the game, have fun"});
+        socket.broadcast.to(lobby.id).emit("MessageEventReceived", {content: "[SERVER]:Game Have Started"});
+
+        ServerConsole.LogEvent("Started the game!");
+        this.HaveStarted = true;
 
 
         //RANDOM PARTIES
@@ -374,10 +439,7 @@ module.exports = class GameLobby extends LobbyBase {
 
             }
             
-        }   
-        
-
-        //Gamedata.have_started = true;
+        }
     
     }
 
@@ -388,6 +450,15 @@ module.exports = class GameLobby extends LobbyBase {
         let targetSocket = connection.socket;
 
         target.IsAlive = false;
+        
+        if(this.HaveStarted){
+            if(target.team == "BLUE"){
+                this.RED_Kills += 1;
+            }
+            if(target.team == "RED"){
+                this.BLUE_kills += 1;
+            }
+        }
 
         //respawn position
         target.position.x = 77.855;
@@ -395,7 +466,9 @@ module.exports = class GameLobby extends LobbyBase {
         target.position.z = 33.191;
 
         targetSocket.broadcast.to(lobby.id).emit('UpdatePosition', target);
+        targetSocket.broadcast.to(lobby.id).emit('Update_Situation', {red: this.RED_Kills, blue: this.BLUE_kills});
         targetSocket.emit('Die', target);
+        targetSocket.emit('Update_Situation', {red: this.RED_Kills, blue: this.BLUE_kills});
 
         //#region DEBUG
         C.Get(function(data){
@@ -476,7 +549,7 @@ module.exports = class GameLobby extends LobbyBase {
         //#region DEBUG
         C.Get(function(data){
             if(data.show_lobby_events){
-                ServerConsole.LogEvent("spawned the player!", this.id, 0);
+                ServerConsole.LogEvent("spawned the player!", lobby.id, 0);
             }
         });
         //#endregion 

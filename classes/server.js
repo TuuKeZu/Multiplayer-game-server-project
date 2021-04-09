@@ -26,6 +26,16 @@ module.exports = class Server {
 
         this.lobbies[0] = new LobbyBase(0);
     }
+    UpdateLobbyTick(){
+        let server = this;
+
+        for (let index = 0; index < server.lobby_IDs.length; index++) {
+            let lobby = server.lobbies[server.lobby_IDs[index]];
+            if(lobby != null){
+                lobby.LobbyTick();
+            }
+        }
+    }
 
     OnConnected(socket){
         let connection = new Connection_();
@@ -90,7 +100,8 @@ module.exports = class Server {
                 let lobbyID = server.lobby_IDs[index];
 
                 if(server.lobbies[lobbyID] != null){
-                    let CanJoin = server.lobbies[lobbyID].CanEnterLobby(connection);
+                    let CanJoin = true;
+                    //let CanJoin = server.lobbies[lobbyID].CanEnterLobby(connection);
                     //#region DEBUG
                     C.Get(function(data){
                         if(data.show_lobby_events){

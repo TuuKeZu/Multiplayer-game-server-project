@@ -15,8 +15,10 @@ module.exports = class config{
                 returndata.show_join_requests = CONFIG[0].debug.show_join_requests;
                 returndata.show_chat = CONFIG[0].debug.show_chat;
                 returndata.show_lobby_events = CONFIG[0].debug.show_lobby_events;
+                returndata.show_rotation_packets = CONFIG[0].debug.show_rotation_packets;
 
                 returndata.send_crash_reports = CONFIG[0].utility.send_crash_reports;
+                returndata.enable_CTRL_C = CONFIG[0].utility.enable_CTRL_C;
 
                 return callback(returndata);
 
