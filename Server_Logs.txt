@@ -1,3 +1,0 @@
-Server has been started
-[15:59:1][qNYIfT9vm]successfully created a new GameLobby with an ID of : qNYIfT9vm
-[16:2:45][Rd6fQ4sFo]successfully created a new GameLobby with an ID of : Rd6fQ4sFo

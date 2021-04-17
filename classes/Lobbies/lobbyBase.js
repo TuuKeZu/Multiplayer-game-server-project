@@ -1,7 +1,7 @@
 const Console = require('../console');
 const ServerConsole = new Console();
 
-const config = require('../config');
+const config = require('../Config/config');
 const C = new config();
 
 let Connection = require('../connection');
@@ -19,7 +19,18 @@ module.exports = class LobbyBase{
         //#region DEBUG
         C.Get(function(data){
             if(data.show_lobby_events){
-                ServerConsole.LogEvent("Client ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+                if(!player.IsQuest){
+                    if(player.uid != "user"){
+                        ServerConsole.LogEvent(player.uid+" ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+                    }
+                    else{
+                        ServerConsole.LogEvent("User ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+                    }
+                    
+                }
+                else{
+                    ServerConsole.LogEvent("Guest ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
+                }
             }
         });
         //#endregion 

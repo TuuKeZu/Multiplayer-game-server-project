@@ -23,7 +23,7 @@ module.exports = class Login_System {
         let id = crypto.randomBytes(20).toString('hex');
 
         //käytetään samaa koodinpätkää joka luo käyttäjän.
-        var MYSQL_request = "INSERT INTO user_schema (user_id, user_name, user_uid, user_password, user_rating, user_JsonData, user_ISMuted, user_ISBanned, user_IP_address, user_gmail) VALUES ('"+id+"', '"+user+"', 'user', '"+pass+"', '0', 'null', false, false, ' ', '"+gmail+"');";
+        var MYSQL_request = "INSERT INTO user_schema (user_id, user_name, user_uid, user_password, user_rating, user_JsonData, user_ISMuted, user_ISBanned, user_IP_address, user_gmail) VALUES ('"+id+"', '"+user+"', 'user', '"+pass+"', '0', '/kills:0/rank:unranked/wins:0/', false, false, ' ', '"+gmail+"');";
         Connection.con.query(MYSQL_request);
         ServerConsole.LogEvent("Created a new account : "+user, null, 1);
     }

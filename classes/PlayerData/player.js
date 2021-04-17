@@ -6,6 +6,8 @@ module.exports = class Player {
         this.username = 'Default_Player';
         this.uid = null;
         this.IsQuest = true;
+        this.isLoggedIn = false;
+        this.userData = "";
         this.id = shortID.generate();
 
         this.lobby = 0;
@@ -14,7 +16,6 @@ module.exports = class Player {
         this.IsAlive = true;
         this.CanShoot = true;
         this.lookingAt = null;
-
         this.team = null;
     }
 }

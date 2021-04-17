@@ -1,7 +1,7 @@
 const Console = require('./console');
 const ServerConsole = new Console();
 
-const config = require('./config');
+const config = require('./Config/config');
 const C = new config();
 
 const Config = true;
@@ -25,16 +25,6 @@ module.exports = class Server {
         this.config = Config;
 
         this.lobbies[0] = new LobbyBase(0);
-    }
-    UpdateLobbyTick(){
-        let server = this;
-
-        for (let index = 0; index < server.lobby_IDs.length; index++) {
-            let lobby = server.lobbies[server.lobby_IDs[index]];
-            if(lobby != null){
-                lobby.LobbyTick();
-            }
-        }
     }
 
     OnConnected(socket){
@@ -80,176 +70,6 @@ module.exports = class Server {
         server.lobbies[connection.player.lobby].OnExitLobby(connection);
     } 
 
-    OnAttemptToJoinGame(connection = Connection){ //join open random lobby
-        let server = this;
-        let LobbyFound = false;
-
-        let GameLobbies = server.lobbies.filter(item => {
-            return item instanceof Gamelobby;
-        })
-        //#region DEBUG
-            C.Get(function(data){
-                if(data.show_lobby_events){
-                    ServerConsole.LogEvent("Found a total of : "+GameLobbies.length+"/"+server.lobbies.length+" from the server!", connection.lobby.id, null);
-                }
-            });
-        //#endregion 
-
-        for (let index = 0; index < server.lobby_IDs.length; index++) {
-            if(!LobbyFound){
-                let lobbyID = server.lobby_IDs[index];
-
-                if(server.lobbies[lobbyID] != null){
-                    let CanJoin = true;
-                    //let CanJoin = server.lobbies[lobbyID].CanEnterLobby(connection);
-                    //#region DEBUG
-                    C.Get(function(data){
-                        if(data.show_lobby_events){
-                            ServerConsole.LogEvent("found one lobby");
-                        }
-                    });
-                    //#endregion 
-                    
-                    if(CanJoin){
-                        LobbyFound = true;
-                        server.OnSwitchLobby(connection, lobbyID);
-                    }
-                    else{
-                    //#region DEBUG
-                        C.Get(function(data){
-                            if(data.show_lobby_events){
-                                ServerConsole.LogEvent("lobby ["+lobbyID+"] was full");
-                            }
-                        });
-                    //#endregion 
-                    }
-                }
-                else{
-                    //#region DEBUG
-                    C.Get(function(data){
-                        if(data.show_lobby_events){
-                            ServerConsole.LogEvent("there was a problem finding an lobby with an ID of : "+lobbyID);
-                        }
-                    });
-                    //#endregion 
-                }   
-            }
-            
-        }
-
-        if(!LobbyFound){
-            server.CreateLobbyOpen(new GameLobbySettings('NORMAL', 3), connection);
-        }
-    } 
-
-    OnAttemptToJoinGamePrivate(connection = Connection_, data){ //Join lobby with an id and password
-        let server = this;
-        let LobbyFound = false;
-
-        let GameLobbies = server.lobbies.filter(item => {
-            return item instanceof Gamelobby;
-        });
-
-        for (let index = 0; index < this.lobby_IDs.length; index++) {
-            if(this.lobby_IDs[index] == data.lobby){
-
-                //ServerConsole.LogEvent("One lobby with that specified request was found");
-
-                if(server.lobbies[server.lobby_IDs[index]].password == data.password){
-                    //ServerConsole.LogEvent("Password macthed");
-
-                    let Canjoin = server.lobbies[server.lobby_IDs[index]].CanEnterLobby(connection);
-
-                    if(Canjoin){
-                        LobbyFound = true;
-                        server.OnSwitchLobby(connection, data.lobby);
-                    }
-                    else{
-                        
-                    }
-                }
-                else{
-                    var e = {
-                        type: "lobby",
-                        msg: "411:incorrect password"
-                    }
-
-                    connection.socket.emit('ErrorReceived',e);
-                }
-            }
-            
-        }
-
-        if(!LobbyFound){
-        }
-    } 
-
-    CreateLobbyOpen(settings = GameLobbySettings, connection = Connection){
-        let server = this;
-        let id = shortid.generate();
-        //#region DEBUG
-            C.Get(function(data){
-                if(data.show_lobby_events){
-                    ServerConsole.LogEvent("Creating new public lobby...", null, 1);
-                }
-            });
-        //#endregion 
-        let gamelobby = new Gamelobby(id, settings, null); 
-
-        server.lobbies[id] = gamelobby;
-        server.lobby_IDs[server.lobby_IDs.length +1] = id;
-
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id, null, null);
-            }
-        });
-        //#endregion 
-        ServerConsole.LogServerEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id, gamelobby.id);
-        server.OnSwitchLobby(connection, id);
-    }
-
-    CreateLobbyPrivate(settings = GameLobbySettings, password, connection = Connection_){
-        let server = this;
-        let id = shortid.generate();
-
-        if(password != null){
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("Creating new public lobby...", null, 1);
-            }
-        });
-    //#endregion 
-
-            let gamelobby = new Gamelobby(id, settings, password);
-            gamelobby.password = password;
-
-            server.lobbies[id] = gamelobby;
-            server.lobby_IDs[server.lobby_IDs.length +1] = id;
-
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("successfully created a new GameLobby with an ID of : "+gamelobby.id, null, null);
-            }
-        });
-        //#endregion 
-
-            if(settings.isPlayerGenerated){
-                gamelobby.IsServerGenerated = false;
-            }
-            else{
-                gamelobby.IsServerGenerated = true;
-            }
-        
-            if(connection != null){
-                server.OnSwitchLobby(connection, gamelobby.id);
-            }
-        }
-    }
-
     OnSwitchLobby(connection = Connection, lobbyID){
         let server = this;
         let lobbies = server.lobbies;
@@ -258,37 +78,6 @@ module.exports = class Server {
         connection.lobby = lobbies[lobbyID];
         lobbies[connection.player.lobby].OnExitLobby(connection);
         lobbies[lobbyID].OnEnterLobby(connection);
-    }
-
-    KillLobby(lobby = Gamelobby){
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("starting lobby shutdown", lobby.id, 2);
-            }
-        });
-        //#endregion 
-        
-        let target = lobby;
-
-        if(target != null){
-            for (let index = 0; index < this.lobby_IDs.length; index++) {
-                if(this.lobby_IDs[index] == target.id){
-                    this.lobby_IDs.splice(index, 1);
-                    //#region DEBUG
-                    C.Get(function(data){
-                        if(data.show_lobby_events){
-                            ServerConsole.LogEvent("Successfully deleted the lobby!", lobby.id);
-                        }
-                    });
-                    //#endregion 
-                }
-                
-            }
-
-
-        }
-
     }
 
     OnLobbyCheck(){

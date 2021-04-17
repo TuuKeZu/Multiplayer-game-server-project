@@ -9,7 +9,7 @@ const Server = require('./classes/server.js');
 const DC = require('../MultiplayerGameServer - DiscordConnection');
 const Discord = new DC();
 
-const config = require('./classes/config');
+const config = require('./classes/Config/config');
 const C = new config();
 
 const Login_System = require('./classes/Login-System');
@@ -43,10 +43,6 @@ let server = new Server();
 setInterval(() => {
     server.OnLobbyCheck();
 }, 5000);
-
-setInterval(() => {
-    server.UpdateLobbyTick();
-}, 1000);
 
 let CanSendCrashReport;
 
