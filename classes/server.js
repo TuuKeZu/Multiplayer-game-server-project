@@ -1,4 +1,4 @@
-const Console = require('./console');
+const Console = require('./Config/console');
 const ServerConsole = new Console();
 
 const config = require('./Config/config');
@@ -6,9 +6,8 @@ const C = new config();
 
 const Config = true;
 
-
 let Connection_ = require('./connection');
-let Player = require('./player');
+let Player = require('./PlayerData/player');
 
 let LobbyBase = require('./Lobbies/lobbyBase');
 let Gamelobby = require('./Lobbies/GameLobby');
@@ -97,6 +96,45 @@ module.exports = class Server {
             }
             
         }
+    }
+
+    OnPacketFrequencyCheck(){
+        for (let index = 0; index < this.connection_IDs.length; index++) { 
+            if(this.connection_IDs[index] != null){
+                let currID = this.connection_IDs[index];
+                let con = this.connections[currID];
+                con.player.packetFrequencyAvarge = con.player.packetFrequency;
+                con.player.packetFrequency = 0;
+
+                let packetsAvarge = con.player.packetFrequencyAvarge;
+
+                if(con.player.lobby == 0){
+                    if(packetsAvarge > 5){
+                        ServerConsole.LogEvent("Packet limit was overriden!", null, 2);
+                        this.ForceDisconnect(con, "You are sending many packets!");
+                    }
+                }
+                else{
+                    if(packetsAvarge > 50){
+                        ServerConsole.LogEvent("Packet limit was overriden!", null, 2);
+                        this.ForceDisconnect(con, "You are sending many packets!");
+                    }
+                }
+            }
+        }
+    }
+
+    ForceDisconnect(connection = Connection, reason){
+
+        let returnData = connection.socket;
+
+        var data = {
+            id: connection.player.id,
+            reason: reason
+        }
+
+        returnData.emit('Kicked', data);
+        returnData.disconnect();
     }
 
 

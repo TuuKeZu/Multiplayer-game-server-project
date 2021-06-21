@@ -11,7 +11,7 @@
     },
     "utility": {
         "send_crash_reports": false,
-        "enable_CTRL_C": false
+        "enable_CTRL_C": true
     }
     
 }

@@ -1,4 +1,4 @@
-const Console = require('../console');
+const Console = require('../Config/console');
 const ServerConsole = new Console();
 
 const config = require('../Config/config');

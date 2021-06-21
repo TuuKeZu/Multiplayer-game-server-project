@@ -4,7 +4,8 @@
   "description": "server for multiplayer game",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "run": "node System.js"
   },
   "author": "TuuKeZu",
   "license": "ISC",

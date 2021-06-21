@@ -2,7 +2,7 @@ const fs = require('fs');
 
 module.exports = class config{
     Get(callback){
-        fs.readFile('./config.json', (err, data) =>{
+        fs.readFile('./classes/Config/config.json', (err, data) =>{
             if (err) {
                 console.log(`Error reading file from disk: ${err}`);
             } else {

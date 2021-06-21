@@ -7,8 +7,11 @@ module.exports = class Player {
         this.uid = null;
         this.IsQuest = true;
         this.isLoggedIn = false;
-        this.userData = "";
+        this.userID = "";
+        this.userData = {};
         this.id = shortID.generate();
+        this.packetFrequency = 0;
+        this.packetFrequencyAvarge = 0;
 
         this.lobby = 0;
         this.position = new _Vector3();
