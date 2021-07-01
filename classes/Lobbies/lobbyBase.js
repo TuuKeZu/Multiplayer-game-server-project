@@ -16,30 +16,14 @@ module.exports = class LobbyBase{
     OnEnterLobby(connection = Connection){
         let lobby = this;
         let player = connection.player;
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                if(!player.IsQuest){
-                    if(player.uid != "user"){
-                        ServerConsole.LogEvent(player.uid+" ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
-                    }
-                    else{
-                        ServerConsole.LogEvent("User ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
-                    }
-                    
-                }
-                else{
-                    ServerConsole.LogEvent("Guest ["+player.id+"] has entered the lobby ["+lobby.id+"]", lobby.id, 0);
-                }
-            }
-        });
-        //#endregion 
 
         lobby.connections.push(connection);
         lobby.connection_IDs.push(player.id);
 
         player.lobby = lobby.id;
         connection.lobby = lobby;
+
+        ServerConsole.LogEvent("user have joined the lobby", this.id, 0);
     }
 
     OnExitLobby(connection = Connection){
@@ -51,8 +35,6 @@ module.exports = class LobbyBase{
         let index = lobby.connections.indexOf(connection);
         let index2 = lobby.connection_IDs.indexOf(player.id);
 
-        //ServerConsole.LogEvent("preparing to remove ["+connection.player.id+"] from connections list", lobby.id, null);
-
         if(index > -1){
             lobby.connections.splice(index, 1);
         }
@@ -60,12 +42,7 @@ module.exports = class LobbyBase{
         if(index2 > -1){
             lobby.connection_IDs.splice(index2, 1);
         }
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("Client have left the lobby!", lobby.id, 1);
-            }
-        });
-        //#endregion 
+
+        ServerConsole.LogEvent("User has left the lobby", this.id);
     }
 }

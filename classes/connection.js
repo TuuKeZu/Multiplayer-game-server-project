@@ -33,7 +33,7 @@ module.exports = class Connection{
                         ServerConsole.LogEvent("Updated position");
                     }
                     else{
-                        this.server.ForceDisconnect(this, "You are sending too big packets!");
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
                     }
                 }
             }
@@ -45,9 +45,23 @@ module.exports = class Connection{
             if(data.SessionID != null){
                 if(Object.keys(data).length == 1){
                     if(JSON.stringify(data).length < 1000){
+                        let CanLogin = true;
+                        LoginSystem.LoginToAccountWithSessionID(data.SessionID, connection, function(user_dat){
+                            if(user_dat == "500"){
+                                ServerConsole.LogEvent("login was aborted: user is already logged in", null, 2);
+                                connection.socket.emit('login-failed', {reason: "500"});
+                                CanLogin = false;
+                                return;
+                            }
 
-                        LoginSystem.LoginToAccountWithSessionID(data.SessionID, function(user_dat){
-                            if(user_dat != false){
+                            if(user_dat == false){
+                                ServerConsole.LogEvent("login was aborted: invalid session ID", null, 2);
+                                connection.socket.emit('login-failed', {reason: "501"});
+                                CanLogin = false;
+                                return;
+                            }
+
+                            if(user_dat != false && user_dat != "500" && CanLogin){
                                 let returndata = {
                                     sessionID: user_dat.user_session_id,
                                     username: user_dat.username,
@@ -62,33 +76,44 @@ module.exports = class Connection{
                                 ServerConsole.LogEvent("login with sessionID was succesfull", null, 0);
 
                                 connection.player.userID = user_dat.user_ID;
+                                connection.player.uid = user_dat.user_uid;
                                 connection.player.userData = user_dat.user_JSON;
                                 connection.player.isLoggedIn = true;
                                 connection.player.username = user_dat.username;
-                                ServerConsole.LogEvent(connection.player.username);
                                 
-                            }
-                            if(user_dat == false){
-                                ServerConsole.LogEvent("login was aborted: invalid session ID", null, 2);
-                                connection.socket.emit('login-failed', {reason: "501"});
+                                
                             }
                         });
                     }
                     else{
-                        this.server.ForceDisconnect(this, "You are sending too big packets!");
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
                     }
                 }
             }
         });
 
         socket.on('login', function(data){
+            ServerConsole.LogEvent("logout event");
             connection.player.packetFrequency += 1;
             if(data != null){
                 if(Object.keys(data).length == 2){
                     if(JSON.stringify(data).length < 1000){
-                        
-                        LoginSystem.LoginToAccount(data.username, data.password, function(user_dat){
-                            if(user_dat != false){
+                        let Canlogin = true;
+                        LoginSystem.LoginToAccount(data.username, data.password, connection, function(user_dat){
+                            if(user_dat == "500"){
+                                ServerConsole.LogEvent("login was aborted: user is already logged in", null, 2);
+                                connection.socket.emit('login-failed', {reason: "500"});
+                                Canlogin = false;
+                                return;
+                            }
+                            
+                            if(user_dat == false){
+                                connection.socket.emit('login-failed', {reason: "502"});
+                                Canlogin = false;
+                                return;
+                            }
+                            
+                            if(user_dat != false && user_dat != "500" && Canlogin){
                                 let returndata = {
                                     sessionID: user_dat.user_session_id,
                                     username: user_dat.username,
@@ -104,26 +129,94 @@ module.exports = class Connection{
 
                                 connection.player.userID = user_dat.user_ID;
                                 connection.player.userData = user_dat.user_JSON;
-                                ServerConsole.LogEvent(userData.user_JSON);
-                            }
-                            if(user_dat == false){
-                                connection.socket.emit('login-failed', {reason: "502"});
+                                connection.player.isLoggedIn = true;
+                                connection.player.username = user_dat.username;
                             }
                         });
                     }
                     else{
-                        this.server.ForceDisconnect(this, "You are sending too big packets!");
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
                     }
                 }
             }
         });
 
         socket.on('logout', function(data){
-            
+            LoginSystem.logOutOfTheAccount(connection);
         });
 
         socket.on('retrieve_stats', function(data){
+            connection.player.packetFrequency += 1;
+            if(data != null){
+                if(Object.keys(data).length == 1){
+                    if(JSON.stringify(data).length < 10000){
+                        LoginSystem.Retrieve_data(data.username, (user_dat)=>{
+                            if(user_dat == false){
+                                ServerConsole.LogEvent("There was a problem retrieving the data...");
 
+                                let returndata = {
+                                    error: "Data retrieval went wrong",
+                                    code: 800
+                                }
+
+                                connection.socket.emit('error_', returndata)
+                                return;
+                            }
+
+                            if(user_dat != false){
+                                ServerConsole.LogEvent("successfully retrieved userdata");
+                                connection.socket.emit('stats', user_dat);
+                            }
+                        });
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('join_lobby', function(data){
+            connection.player.packetFrequency += 1;
+            if(data != null){
+                if(Object.keys(data).length == 1){
+                    if(JSON.stringify(data).length < 10000){
+                        
+                        connection.server.OnJoinQueue(connection, "NORMAL");
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('join_lobby_game', function(data){
+            connection.player.packetFrequency += 1;
+            if(data != null){
+                if(Object.keys(data).length == 1){
+                    if(JSON.stringify(data).length < 10000){
+                        
+                        connection.server.OnJoinGameFromQueue(connection, data.ID);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+//OnJoinGameFromQueue
+
+        socket.on('exit_lobby', function(data){
+            connection.player.packetFrequency += 1;
+            connection.server.OnExitQueue(connection);
+        });
+        
+
+        socket.on('request_lobby_list', function(data){
+            connection.player.packetFrequency += 1;
+            connection.server.OnRequestQueue(connection);
         });
             
         

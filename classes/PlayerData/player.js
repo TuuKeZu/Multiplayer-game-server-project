@@ -12,8 +12,9 @@ module.exports = class Player {
         this.id = shortID.generate();
         this.packetFrequency = 0;
         this.packetFrequencyAvarge = 0;
-
         this.lobby = 0;
+        this.IsInQueue = false;
+
         this.position = new _Vector3();
         this.health = 100;
         this.IsAlive = true;

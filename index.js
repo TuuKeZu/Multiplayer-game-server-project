@@ -21,6 +21,7 @@ const mysql = require('./classes/MySQL/MySQLconnection');
 const mySQL = new mysql();
 
 const { settings } = require('cluster');
+const { emit } = require('process');
 
 ServerConsole.LogEvent("Server started", null, 0);
 
@@ -44,10 +45,6 @@ io.on('connection', function(socket){
 
 //server side command handler
 
-setInterval(() => {
-}, 2000);
-
-
 
 process.stdin.resume();
 process.stdin.setEncoding('utf8');
@@ -56,16 +53,32 @@ process.stdin.setEncoding('utf8');
 
 //Server side commands
 process.stdin.on('data', function (text) {
-
-    ServerConsole.LogEvent(text, null, null);
-    console_array = text.split(' ');
+    console_array = text.trim().split(' ');
 
     if(text.trim() === 'stop') {
         quit();
     }
+    if(text.trim() === 'connection ls'){
+        ListCon();
+    }
+    if(text.trim() ==='queue ls'){
+        ListQueue();
+    }
+    if(text.trim() === 'lobby ls'){
+        Listlobbies();
+    }
+    if(console_array[0] == 'user' && console_array[1] != null){
+        ServerConsole.LogEvent("Retrieving data from user ["+console_array[1]+"]...");
 
-
-
+        LoginSystem.Retrieve_data(console_array[1], (returnData)=>{
+            if(returnData != false){
+                console.log(returnData);
+            }
+            else{
+                ServerConsole.LogEvent("couldn't find any information with username : "+console_array[1]);
+            }
+        });
+    }
 });
 
 //server side functions
@@ -74,6 +87,53 @@ function quit() {
     ServerConsole.LogEvent('Server shut down!', null, 2);
     ServerConsole.LogEvent("Server shutting down...", null, 2);
     process.exit(1);
+}
+
+function ListCon(){
+    let connectionCount = 0;
+
+    server.connection_IDs.forEach(i => {
+        var con = server.connections[i];
+        var player = con.player;
+        var br = '\n';
+
+        var userInfo = br+
+        'Is logged in : '+player.isLoggedIn+br+
+        '---------------------'+br+
+        'username : '+player.username+br+
+        'uid : '+player.uid+br+
+        'connection ID : '+i+br+
+        'lobby : '+player.lobby+br+
+        'userID : '+player.userID+br+
+        'userdata : '+player.userData+br+"-----------------------------------";
+
+        ServerConsole.LogEvent(userInfo, null, 1);
+
+        connectionCount++;
+    });
+
+    ServerConsole.LogEvent("Finished connection query : "+connectionCount+" results were found!");
+}
+
+function ListQueue(){
+    let queueLenght = 0;
+
+    server.queueList.forEach(function(queue, index){
+        ServerConsole.LogEvent("["+index+"] - ["+queue.ID+"] Hosted by ["+queue.connection.player.username+"]", null, 1);
+        queueLenght ++;
+    });
+
+    ServerConsole.LogEvent("Finished lobby queury : "+queueLenght+" results were found!");
+}
+
+function Listlobbies(){
+    let lobbyCount = 0;
+    server.lobbies.forEach(function(lobby, index){
+        ServerConsole.LogEvent("["+index+"] - ["+lobby.id+"] - with connections of "+lobby.connection_IDs.length);
+        lobbyCount++;
+    });
+
+    ServerConsole.LogEvent("Finished lobby query : "+lobbyCount+" results were found!");
 }
 
 
@@ -92,9 +152,19 @@ async function SendCrashReport(error){
 process.on('uncaughtException', (error)  => {
     
     ServerConsole.LogEvent("Server shutting down...", null, 2);
-    
+    io.sockets.emit("kicked", {reason: "Server is shutting down"});
     ServerConsole.LogEvent(error.stack, null, 2);
-    process.exit(1);
     
+    setTimeout(() => {
+        process.exit(1);
+    }, 300);
+});
 
+process.on('SIGINT', function(){
+    ServerConsole.LogEvent("Server shutting down...", null, 2);
+    io.sockets.emit("kicked", {reason: "Server is shutting down"});
+
+    setTimeout(() => {
+        process.exit(1);
+    }, 300);
 });

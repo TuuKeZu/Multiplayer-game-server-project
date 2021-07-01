@@ -5,8 +5,6 @@ const config = require('./Config/config');
 const C = new config();
 
 const Config = true;
-
-let Connection_ = require('./connection');
 let Player = require('./PlayerData/player');
 
 let LobbyBase = require('./Lobbies/lobbyBase');
@@ -23,11 +21,14 @@ module.exports = class Server {
         this.connection_IDs = [];
         this.config = Config;
 
+        this.queueList = [];
+
         this.lobbies[0] = new LobbyBase(0);
+        
     }
 
     OnConnected(socket){
-        let connection = new Connection_();
+        let connection = new Connection();
         connection.socket = socket;
         connection.player = new Player();
         connection.server = this;
@@ -36,7 +37,6 @@ module.exports = class Server {
         let lobbies = this.lobbies;
 
         this.connections[player.id] = connection;
-
         this.connection_IDs[this.connection_IDs.length + 1] = player.id;
 
         socket.join(player.lobby);
@@ -44,11 +44,17 @@ module.exports = class Server {
         connection.lobby.OnEnterLobby(connection);
 
         return connection;
-    } 
+    }
 
     OnDisconnected(connection = Connection){
         let server = this;
         let id = connection.player.id;
+        let player = connection.player;
+
+        if(player.IsInQueue){
+            player.IsInQueue = false;
+            this.RemoveFromQueueList(player.username);
+        }
 
         delete server.connections[id];
 
@@ -57,9 +63,6 @@ module.exports = class Server {
         if(index > -1){
             this.connection_IDs.splice(index, 1);
             this.connection_IDs.length -= 1;
-        }
-        if(Config.show_join_requests){
-            ServerConsole.LogEvent("Client Have disconnected", connection.lobby.id, 2);
         }
 
         connection.socket.broadcast.to(connection.player.lobby).emit('disconnected', {
@@ -74,6 +77,8 @@ module.exports = class Server {
         let lobbies = server.lobbies;
 
         connection.socket.join(lobbyID);
+        connection.socket.emit("switch_lobby", {ID: lobbyID});
+
         connection.lobby = lobbies[lobbyID];
         lobbies[connection.player.lobby].OnExitLobby(connection);
         lobbies[lobbyID].OnEnterLobby(connection);
@@ -86,8 +91,6 @@ module.exports = class Server {
             if(temp_lobbyID != null){
                 let lobby = this.lobbies[temp_lobbyID];
 
-                //ServerConsole.LogEvent(lobby.id);
-
                 if(lobby.connections.length < 1){
                     if(!lobby.IsServerGenerated){
                         this.KillLobby(lobby);
@@ -97,6 +100,93 @@ module.exports = class Server {
             
         }
     }
+
+    OnRequestQueue(connection = Connection){
+        let server = this;
+        let QueueLenght = 0;
+        var queueListRequest = {}
+
+        ServerConsole.LogEvent("Queue list were requested");
+
+
+        this.queueList.forEach(queue => {
+            QueueLenght += 1;
+            if(queue != null){
+                queueListRequest[QueueLenght] = {id: queue.ID, host: queue.connection.player.username};
+            }
+        });
+
+        queueListRequest["lenght"] = QueueLenght;
+
+        connection.socket.emit('queue_list', queueListRequest);
+    }
+
+    OnJoinQueue(connection = Connection, data){
+        let server = this;
+        if(data == "NORMAL"){
+            if(!connection.player.IsInQueue){
+                let LobbyID = shortid.generate();
+
+                let Lobby = new Gamelobby(LobbyID, new GameLobbySettings('NORMAL', 2, 60), null);
+                Lobby.IsServerGenerated = false;
+                
+                server.lobbies[LobbyID] = Lobby;
+                server.lobby_IDs[server.lobby_IDs.length +1] = LobbyID;
+    
+                connection.player.IsInQueue = true;
+    
+                ServerConsole.LogEvent("Created lobby: "+LobbyID);
+
+                this.queueList[this.queueList.length + 1] = {ID: LobbyID, connection: connection};
+    
+                this.OnSwitchLobby(connection, LobbyID);
+                Lobby.addPlayer(connection);
+
+                connection.socket.emit("entered_queue", {ID: LobbyID});
+            }
+            else{
+                this.EmitError(connection, "You are already in queue", 601);
+            }
+        }
+    }
+
+    OnExitQueue(connection = Connection){
+        ServerConsole.LogEvent("user exiting lobby...");
+        this.RemoveFromQueueList(connection.player.username);
+        this.OnSwitchLobby(connection, 0);
+        connection.socket.emit("exited_queue");
+        connection.player.IsInQueue = false;
+    }
+
+    OnJoinGameFromQueue(connection = Connection, ID){
+        let server = this;
+        let lobbyFound = false;
+        let targetQueue = null;
+        this.queueList.forEach(queue => {
+            if(queue.ID == ID){
+                lobbyFound = true;
+                targetQueue = queue;
+            }
+        });
+
+        if(lobbyFound){
+            if(targetQueue.connection.player.username != connection.player.username){
+
+                this.OnSwitchLobby(connection, targetQueue.ID);
+                this.lobbies[targetQueue.ID].addPlayer(connection);
+                ServerConsole.LogEvent("user succesfully entered lobby");
+            }
+            else{
+                ServerConsole.LogEvent("user is trying to join its own queue");
+                this.EmitError(connection, "You tried to join your own queue...", 701);
+            }
+        }
+        else{
+            ServerConsole.LogEvent("lobby was not found. Maybe it was destroyed?");
+            this.EmitError(connection, "Lobby with that ID was not found.", 700);
+        }
+    }
+
 
     OnPacketFrequencyCheck(){
         for (let index = 0; index < this.connection_IDs.length; index++) { 
@@ -124,6 +214,27 @@ module.exports = class Server {
         }
     }
 
+    OnUsernameCheck(username, callback){
+        let FoundUser;
+        if(username != null){
+
+            this.connection_IDs.forEach(conID => {
+                if(this.connections[conID] != null){
+                    if(this.connections[conID].player.username == username){
+                        FoundUser = true;
+                    }
+                }
+            });
+
+            if(FoundUser){
+                return callback(true);
+            }
+            else{
+                return callback(false);
+            }
+        }
+    }
+
     ForceDisconnect(connection = Connection, reason){
 
         let returnData = connection.socket;
@@ -135,6 +246,35 @@ module.exports = class Server {
 
         returnData.emit('Kicked', data);
         returnData.disconnect();
+    }
+
+    RemoveFromQueueList(hostname){
+        if(hostname != null){
+            this.queueList.forEach((queue, index)=>{
+                if(queue.connection.player.username == hostname){
+                    delete this.queueList[index];
+                    ServerConsole.LogEvent("removed user["+hostname+"] from queue");
+                }
+            });
+        }
+    }
+
+    KillLobby(lobby = Gamelobby){
+        
+    }
+
+    EmitError(connection = Connection, error_, errorcode){
+        if(connection != null && error_ != null && errorcode != null){
+            let returndata = {
+                error: error_,
+                code: errorcode
+            }
+    
+            connection.socket.emit('error_', returndata);
+        }
+        else{
+            ServerConsole.LogEvent("something went wrong with error submitting!");
+        }
     }
 
 

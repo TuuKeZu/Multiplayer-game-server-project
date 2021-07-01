@@ -10,6 +10,7 @@ let LobbyBase = require('./lobbyBase');
 let GameLobbySettings = require('./GameLobbySettings');
 let Connection = require('../connection');
 const { connect } = require('http2');
+const { start } = require('repl');
 module.exports = class GameLobby extends LobbyBase {
     constructor(id, setting = GameLobbySettings, password = String){
         super(id);
@@ -18,6 +19,7 @@ module.exports = class GameLobby extends LobbyBase {
         this.public_chat = [];
         this.IsServerGenerated = null;
         this.connection_count = 0;
+
         this.timeElapsed = setting.timeInMin*60;
         this.HaveStarted;
         this.BLUE_kills = 0;
@@ -39,17 +41,53 @@ module.exports = class GameLobby extends LobbyBase {
         let connections = lobby.connections;
         let socket = connection.socket;
 
+        ServerConsole.LogEvent("User joined the gamelobby lobby!");
+
+        this.connection_count++;
+
+        if(this.connection_count == 2){
+            this.Start(connection);
+            this.HaveStarted = true;
+        }
+    }
+
+    Start(connection = Connection){
+        let lobby = this;
+        let connections = lobby.connections;
+        let socket = connection.socket;
+
         var returnData = {
             id: connection.player.id,
             username: connection.player.username
         }
-        //#region DEBUG
-        C.Get(function(data){
-            if(data.show_lobby_events){
-                ServerConsole.LogEvent("spawned the player!", lobby.id, 0);
+
+        socket.emit('lobby_join_success', {id: lobby.id});
+        socket.broadcast.to(lobby.id).emit('lobby_join_success', {id: lobby.id})
+
+        socket.broadcast.to(lobby.id).emit('join', returnData);
+
+        connections.forEach(con =>{
+            if(con.player.id != connection.player.id){
+
+                var returndata = {
+                    id: con.player.id,
+                    username:con.player.username
+                }
+
+                socket.emit('join', returnData);
             }
         });
-        //#endregion 
+    }
+
+    Spawn(connection = Connection){
+        let lobby = this;
+        let connections = lobby.connections;
+        let socket = connection.socket;
+
+        var returnData = {
+            id: connection.player.id,
+            username: connection.player.username
+        }
 
         socket.broadcast.to(lobby.id).emit('spawn', returnData);
 
