@@ -15,6 +15,12 @@ module.exports = class Player {
         this.lobby = 0;
         this.IsInQueue = false;
 
+        this.Q_ability = 0;
+        this.E_ability = 0;
+        this.F_ability = 0;
+        this.IsReady = false;
+        this.IsSpawned = false;
+
         this.position = new _Vector3();
         this.health = 100;
         this.IsAlive = true;

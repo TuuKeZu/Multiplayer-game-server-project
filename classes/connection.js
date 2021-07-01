@@ -93,7 +93,7 @@ module.exports = class Connection{
         });
 
         socket.on('login', function(data){
-            ServerConsole.LogEvent("logout event");
+            ServerConsole.LogEvent("login event");
             connection.player.packetFrequency += 1;
             if(data != null){
                 if(Object.keys(data).length == 2){
@@ -198,6 +198,22 @@ module.exports = class Connection{
                     if(JSON.stringify(data).length < 10000){
                         
                         connection.server.OnJoinGameFromQueue(connection, data.ID);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('confirm_abilities', function(data){
+            if(data != null){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+                        connection.player.Q_ability = data.Q;
+                        connection.player.E_ability = data.E;
+                        connection.player.F_ability = data.F;
+                        connection.server.OnConfirmStart(connection);
                     }
                     else{
                         connection.server.ForceDisconnect(this, "You are sending too big packets!");

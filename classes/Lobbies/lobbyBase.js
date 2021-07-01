@@ -43,6 +43,6 @@ module.exports = class LobbyBase{
             lobby.connection_IDs.splice(index2, 1);
         }
 
-        ServerConsole.LogEvent("User has left the lobby", this.id);
+        ServerConsole.LogEvent("User has left the lobby", this.id, 1);
     }
 }

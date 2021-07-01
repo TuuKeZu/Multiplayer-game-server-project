@@ -171,10 +171,19 @@ module.exports = class Server {
 
         if(lobbyFound){
             if(targetQueue.connection.player.username != connection.player.username){
+                let lobby = this.lobbies[targetQueue.ID];
+                if(!lobby.HaveStarted && lobby.connection_count == 1){
+                    this.OnSwitchLobby(connection, targetQueue.ID);
+                    this.lobbies[targetQueue.ID].addPlayer(connection);
 
-                this.OnSwitchLobby(connection, targetQueue.ID);
-                this.lobbies[targetQueue.ID].addPlayer(connection);
-                ServerConsole.LogEvent("user succesfully entered lobby");
+                    this.RemoveFromQueueList(targetQueue.connection.player.username);
+                    this.RemoveFromQueueList(connection.player.username);
+                    
+                    ServerConsole.LogEvent("user succesfully entered lobby");
+                }
+                else{
+                    this.EmitError(connection, "Game has already started or the max amount of players is achieved", 702);
+                }
             }
             else{
                 ServerConsole.LogEvent("user is trying to join its own queue");
@@ -185,6 +194,16 @@ module.exports = class Server {
             ServerConsole.LogEvent("lobby was not found. Maybe it was destroyed?");
             this.EmitError(connection, "Lobby with that ID was not found.", 700);
         }
+    }
+
+    OnConfirmStart(connection = Connection){
+        this.lobbies[connection.player.lobby].ConfirmStart(connection);
+    }
+
+    onExitGame(connection = Connection, reason_){
+        this.OnSwitchLobby(connection, 0);
+        connection.socket.emit('exit_game', {reason: reason_});
+        connection.player.IsInQueue = false;
     }
 
 
