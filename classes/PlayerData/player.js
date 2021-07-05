@@ -19,9 +19,12 @@ module.exports = class Player {
         this.E_ability = 0;
         this.F_ability = 0;
         this.IsReady = false;
-        this.IsSpawned = false;
 
         this.position = new _Vector3();
+        this.rotation = new _Vector3();
+        this.VelocityX = 0;
+        this.VelocityZ = 0;
+        
         this.health = 100;
         this.IsAlive = true;
         this.CanShoot = true;

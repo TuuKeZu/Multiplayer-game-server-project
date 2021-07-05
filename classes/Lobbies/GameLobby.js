@@ -25,6 +25,8 @@ module.exports = class GameLobby extends LobbyBase {
         this.GameHaveStarted = false;
         this.BLUE_kills = 0;
         this.RED_Kills = 0;
+
+        this.cooldowns = [];
     }
 
     OnExitLobby(connection = Connection){
@@ -38,8 +40,15 @@ module.exports = class GameLobby extends LobbyBase {
 
         if(this.HaveStarted && this.connection_count < 2){
             connections.forEach(con => {
+                con.player.IsReady = false;
                 this.AbortGame(con, "Game has ended");
             });
+        }
+    }
+
+    OnLobbyTick(){
+        if(this.HaveStarted){
+
         }
     }
 
@@ -139,27 +148,22 @@ module.exports = class GameLobby extends LobbyBase {
         let currentIndex = 0;
         var mapIndex = this.settings.MapIndex;
 
-        //#region SetTeams
-        ServerConsole.LogEvent(RandomIndex);
+        var ReturnData = {};
+
         if(RandomIndex == 0){
             player1Team = "RED";
             player2Team = "BLUE";
 
-            Player1StartPosition = new Vector3(48, 15.5, 1.5);
-            Player2StartPosition = new Vector3(-48, 15.5, 1.5);
+            Player1StartPosition = new Vector3(48, 15.5, 19);
+            Player2StartPosition = new Vector3(-48, 15.5, 19);
         }
         if(RandomIndex == 1){
             player1Team = "BLUE";
             player2Team = "RED";
 
-            Player1StartPosition = new Vector3(-48, 15.5, 1.5);
-            Player2StartPosition = new Vector3(48, 15.5, 1.5);
+            Player1StartPosition = new Vector3(-48, 15.5, 19);
+            Player2StartPosition = new Vector3(48, 15.5, 19);
         }
-
-        ServerConsole.LogEvent(player1Team);
-        ServerConsole.LogEvent(player2Team);
-
-        //#endregion
         
         this.connections.forEach(function(con){
             currentIndex++;
@@ -172,9 +176,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player1StartPosition
                 }
-                console.log(returnData1);
-                con.socket.emit('begin', returnData1);
-                return;
+
+                ReturnData[currentIndex] = {returnData1};
             }
             
             //PLAYER 2
@@ -184,20 +187,65 @@ module.exports = class GameLobby extends LobbyBase {
                     map: mapIndex,
                     clientID: con.player.id,
                     position: Player2StartPosition
-                    
                 }
-                console.log(returnData2);
-                con.socket.emit('begin', returnData2);
-                return;
+
+                ReturnData[currentIndex] = {returnData2};
             }
 
-            //last playercount check before the game
-            if(currentIndex > 2 || currentIndex < 2){
+            if(currentIndex > 2){
                 this.connections.forEach(con =>{
                     this.AbortGame(con, "There was error inside the lobby : 1001");
                 });
                 return;
             }
+        });
+
+        console.log(ReturnData);
+
+        this.connections.forEach(con => {
+            con.socket.emit('begin', {data: ReturnData});
+        });
+    }
+
+    UpdatePosition(connection = Connection, data){
+        var oPosition = connection.player.position;
+
+        var DistanceTraveled = (
+            Math.sqrt(Math.pow((oPosition.x - data.X),2) + Math.pow((oPosition.y - data.Y),2) + Math.pow((oPosition.z - data.Z),2))
+        );
+
+        //ServerConsole.LogEvent(data.X+","+data.Y+","+data.Z+" | Traveled distance : "+DistanceTraveled, this.id);
+
+        connection.player.position = new Vector3(data.X, data.Y, data.Z);
+        connection.socket.broadcast.to(this.id).emit('updated_position', {
+            clientID: connection.player.id,
+            position: connection.player.position
+        });
+    }
+
+
+    UpdateRotation(connection = Connection, data){
+
+        //ServerConsole.LogEvent(data.X+","+data.Y+","+data.Z, this.id);
+
+        connection.player.rotation = new Vector3(data.X, data.Y, data.Z);
+
+        connection.socket.broadcast.to(this.id).emit('updated_rotation', {
+            clientID: connection.player.id,
+            rotation: connection.player.rotation
+        });
+    }
+
+    UpdateAnimationVelocity(connection = Connection, data){
+        ServerConsole.LogEvent(data.X+","+data.Z, this.id);
+
+        connection.player.VelocityX = data.X;
+        connection.player.VelocityZ = data.Z;
+
+        connection.socket.broadcast.to(this.id).emit('updated_velocity', {
+            clientID: connection.player.id,
+            x: connection.player.VelocityX,
+            z: connection.player.VelocityZ
         });
     }
 

@@ -101,6 +101,12 @@ module.exports = class Server {
         }
     }
 
+    OnLobbyTick(){
+        this.lobby_IDs.forEach(lobby => {
+            this.lobbies[lobby].OnLobbyTick();
+        });
+    }
+
     OnRequestQueue(connection = Connection){
         let server = this;
         let QueueLenght = 0;
@@ -224,7 +230,7 @@ module.exports = class Server {
                     }
                 }
                 else{
-                    if(packetsAvarge > 50){
+                    if(packetsAvarge > 100){
                         ServerConsole.LogEvent("Packet limit was overriden!", null, 2);
                         this.ForceDisconnect(con, "You are sending many packets!");
                     }
@@ -279,7 +285,15 @@ module.exports = class Server {
     }
 
     KillLobby(lobby = Gamelobby){
-        
+        let server = this;
+
+        this.lobby_IDs.forEach(function(lobbyID, index){
+            if(lobbyID == lobby.id){
+                delete server.lobbies[lobbyID];
+                delete server.lobby_IDs[index];
+                ServerConsole.LogEvent(lobbyID+" Have been deleted", lobbyID, 2);
+            }
+        })
     }
 
     EmitError(connection = Connection, error_, errorcode){

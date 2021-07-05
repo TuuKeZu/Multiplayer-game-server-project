@@ -69,7 +69,8 @@ module.exports = class Connection{
                                     user_ID: user_dat.user_ID,
                                     user_Json: user_dat.user_JSON,
                                     user_FriendLS: user_dat.user_friend_ls,
-                                    user_FriendREQ: user_dat.user_friend_req
+                                    user_FriendREQ: user_dat.user_friend_req,
+                                    clientID: connection.player.id
                                 }
 
                                 connection.socket.emit('login-response-session', returndata);
@@ -120,7 +121,8 @@ module.exports = class Connection{
                                     user_uid: user_dat.user_uid,
                                     user_Json: user_dat.user_JSON,
                                     user_FriendLS: user_dat.user_friend_ls,
-                                    user_FriendREQ: user_dat.user_friend_req
+                                    user_FriendREQ: user_dat.user_friend_req,
+                                    clientID: connection.player.id
                                 }
                                 ServerConsole.LogEvent(user_dat.user_session_id);
 
@@ -128,6 +130,7 @@ module.exports = class Connection{
                                 ServerConsole.LogEvent("login was succesfull", null, 0);
 
                                 connection.player.userID = user_dat.user_ID;
+                                connection.player.uid = user_dat.user_uid;
                                 connection.player.userData = user_dat.user_JSON;
                                 connection.player.isLoggedIn = true;
                                 connection.player.username = user_dat.username;
@@ -222,17 +225,63 @@ module.exports = class Connection{
             }
         });
 
-//OnJoinGameFromQueue
-
         socket.on('exit_lobby', function(data){
-            connection.player.packetFrequency += 1;
+            connection.player.packetFrequency++;
             connection.server.OnExitQueue(connection);
         });
         
 
         socket.on('request_lobby_list', function(data){
-            connection.player.packetFrequency += 1;
+            connection.player.packetFrequency++;
             connection.server.OnRequestQueue(connection);
+        });
+
+
+        //------------------------------------------------------------
+
+        socket.on('update_position', function(data){
+            connection.player.packetFrequency++;
+            if(data != null && data.X != null && data.Y != null && data.Z != null){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+                        
+                        connection.server.lobbies[connection.player.lobby].UpdatePosition(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('update_rotation', function(data){
+            connection.player.packetFrequency++;
+            if(data != null && data.X != null && data.Y != null && data.Z != null){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].UpdateRotation(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('update_velocity', function(data){
+            connection.player.packetFrequency++;
+            if(data != null && data.X != null && data.Z != null){
+                if(Object.keys(data).length == 2){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].UpdateAnimationVelocity(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
         });
             
         

@@ -35,6 +35,10 @@ setInterval(() => {
     server.OnPacketFrequencyCheck();
 }, 500);
 
+setInterval(() => {
+    server.OnLobbyTick();
+}, 1000);
+
 let CanSendCrashReport;
 
 io.on('connection', function(socket){
@@ -78,6 +82,10 @@ process.stdin.on('data', function (text) {
                 ServerConsole.LogEvent("couldn't find any information with username : "+console_array[1]);
             }
         });
+    }
+
+    if(console_array[0] == 'test'){
+        
     }
 });
 
