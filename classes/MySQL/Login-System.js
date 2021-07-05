@@ -16,7 +16,7 @@ module.exports = class Login_System {
     }
 
     CreateToAccount(username, password, gmail){
-        Connection.database = 'multiplayer-game-database';
+        Connection.database = 'multiplayer_game_database';
         Connection.CreateConnection();
 
         let user = username;
@@ -29,7 +29,7 @@ module.exports = class Login_System {
     }
 
     LoginToAccount(username, password, connection = Connection_, callback){
-        Connection.database = 'multiplayer-game-database';
+        Connection.database = 'multiplayer_game_database';
         Connection.CreateConnection();
 
         var MYSQL_request = "SELECT * FROM user_schema WHERE user_name = '"+username+"'";
@@ -82,7 +82,7 @@ module.exports = class Login_System {
     }
 
     LoginToAccountWithSessionID(sessionID, connection = Connection_, callback){
-        Connection.database = 'multiplayer-game-database';
+        Connection.database = 'multiplayer_game_database';
         Connection.CreateConnection();
 
         let userFound = false;
@@ -130,7 +130,7 @@ module.exports = class Login_System {
     }
 
     logOutOfTheAccount(connection){
-        Connection.database = 'multiplayer-game-database';
+        Connection.database = 'multiplayer_game_database';
         Connection.CreateConnection();
 
         var userID = connection.player.userID;
@@ -167,7 +167,7 @@ module.exports = class Login_System {
     }
 
     Retrieve_data(username, callback){
-        Connection.database = 'multiplayer-game-database';
+        Connection.database = 'multiplayer_game_database';
         Connection.CreateConnection();
 
         var SQL_request = "SELECT * FROM user_schema WHERE user_name = '"+username+"'";

@@ -11,8 +11,8 @@ module.exports = class MySQL { //luo "classin", jonka sisällä tietoja pidetä�
     CreateConnection(){  
         this.con = mySQL.createConnection({ 
             host: "localhost", 
-            user: "root", 
-            password: "", 
+            user: "test_enviroment", 
+            password: "_", 
             database: this.database
         });
     }
