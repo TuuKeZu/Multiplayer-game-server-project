@@ -173,6 +173,14 @@ module.exports = class Login_System {
         var SQL_request = "SELECT * FROM user_schema WHERE user_name = '"+username+"'";
 
         Connection.con.query(SQL_request, function(err, results, fields){
+            if(err){
+                throw err;
+            }
+            
+            if(results == null){
+                return callback(false);
+            }
+
             if(results.length > 0){
                 results.forEach(result => {
                     var returndata = {
