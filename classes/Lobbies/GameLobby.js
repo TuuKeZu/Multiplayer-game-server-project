@@ -1,5 +1,4 @@
 const FS = require('fs');
-
 const Console = require('../Config/console');
 const ServerConsole = new Console();
 
@@ -50,7 +49,7 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     OnSetupLobbyConfig(){
-        FS.readFile('./Classes/Config/GameConfig.json', (err, data)=>{
+        FS.readFile('./GameConfig.json', (err, data)=>{
             if(err) throw err;
 
             this.GameConfig = JSON.parse(data);
