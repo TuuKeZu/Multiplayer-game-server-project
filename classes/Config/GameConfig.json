@@ -1,0 +1,54 @@
+{
+    "GunConfig": {
+        "AK47": {
+            "damage": 10,
+            "MaxAmmo": 50,
+            "Cooldown": 0.15,
+            "velocity": 150,
+            "ID": 1
+        },
+        "RPG": {
+            "damage": 220,
+            "MaxAmmo": 5,
+            "Cooldown": 1.5,
+            "velocity": 80,
+            "ID": 2
+        },
+        "ShotGun": {
+            "damage": 100,
+            "MaxAmmo": 12,
+            "Cooldown": 1,
+            "velocity": 50,
+            "ID": 3
+        },
+        "Sniper": {
+            "damage": 260,
+            "MaxAmmo": 3,
+            "Cooldown": 5,
+            "velocity": 320,
+            "ID": 4
+        },
+        "StunGun": {
+            "damage": 5,
+            "MaxAmmo": 1,
+            "velocity": 320,
+            "ID": 5
+        }
+    },
+    "AbilityConfig": {
+        "CoolDowns": {
+            "Q": 5,
+            "E": 10,
+            "F": 30
+        },
+        "Shield.A": {
+            "range": 15
+        },
+        "Flash.A": {
+            "range": 10
+        },
+        "Heal.A": {
+            "amount": 40
+        }
+    }
+}

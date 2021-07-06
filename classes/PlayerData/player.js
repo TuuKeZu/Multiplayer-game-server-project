@@ -15,7 +15,9 @@ module.exports = class Player {
         this.lobby = 0;
         this.IsInQueue = false;
 
-        this.Q_ability = 0;
+        this.CurrentGun = 0;
+        this.CurrentAmmo = 50;
+        this.Q_ability = 0; 
         this.E_ability = 0;
         this.F_ability = 0;
         this.IsReady = false;
@@ -24,10 +26,22 @@ module.exports = class Player {
         this.rotation = new _Vector3();
         this.VelocityX = 0;
         this.VelocityZ = 0;
+        this.AnimationScopingState = false;
+        this.AnimationDashingState = false;
         
         this.health = 100;
         this.IsAlive = true;
-        this.CanShoot = true;
+
+        this.CanShoot0 = true;
+        this.CanShoot1 = true;
+        this.CanShoot2 = true;
+        this.CanShoot3 = true;
+        this.CanShoot4 = true;
+
+        this.CanCastQ = true;
+        this.CanCastE = true;
+        this.CanCastF = true;
+
         this.lookingAt = null;
         this.team = null;
     }

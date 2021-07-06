@@ -142,6 +142,7 @@ module.exports = class Server {
                 connection.player.IsInQueue = true;
     
                 ServerConsole.LogEvent("Created lobby: "+LobbyID);
+                Lobby.OnSetupLobbyConfig();
 
                 this.queueList[this.queueList.length + 1] = {ID: LobbyID, connection: connection};
     
@@ -308,6 +309,28 @@ module.exports = class Server {
         else{
             ServerConsole.LogEvent("something went wrong with error submitting!");
         }
+    }
+
+    OnForceSimulateGameEnviroment(connection = Connection){
+        let server = this;
+        let LobbyID = shortid.generate();
+
+        let Lobby = new Gamelobby(LobbyID, new GameLobbySettings('NORMAL', 2, 60), null);
+        Lobby.IsServerGenerated = false;
+        
+        server.lobbies[LobbyID] = Lobby;
+        server.lobby_IDs[server.lobby_IDs.length +1] = LobbyID;
+
+        connection.player.IsInQueue = true;
+
+        ServerConsole.LogEvent("Created lobby: "+LobbyID);
+        Lobby.OnSetupLobbyConfig();
+
+        this.queueList[this.queueList.length + 1] = {ID: LobbyID, connection: connection};
+
+        this.OnSwitchLobby(connection, LobbyID);
+        Lobby.addPlayer(connection);
+        this.lobbies[LobbyID].ForceStartGame(connection);
     }
 
 

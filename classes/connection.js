@@ -283,7 +283,57 @@ module.exports = class Connection{
                 }
             }
         });
+
+        socket.on('update_animation_status', function(data){
+            connection.player.packetFrequency++;
+            if(data != null && data.IsScoping != null && data.IsDashing != null){
+                if(Object.keys(data).length == 2){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].UpdateAnimationState(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('update_current_gun', function(data){
+            connection.player.packetFrequency++;
+            if(data != null){
+                if(Object.keys(data).length == 1){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].UpdateCurrentGun(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+
+        socket.on('gun_attack', function(data){
+            connection.player.packetFrequency++;
+            if(data != null){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].SendGunAttackPacket(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
             
+
+        socket.on('debug', function(data){
+            connection.server.OnForceSimulateGameEnviroment(connection);
+        });
         
     }
 }
