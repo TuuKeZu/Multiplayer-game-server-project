@@ -3,7 +3,8 @@ const Console = require('../Config/console');
 const ServerConsole = new Console();
 
 const config = require('../Config/config');
-const C = new config();
+
+const CONFIGFILE = require('./GameConfig.json');
 
 let LobbyBase = require('./lobbyBase');
 let GameLobbySettings = require('./GameLobbySettings');
@@ -49,12 +50,14 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     OnSetupLobbyConfig(){
-        FS.readFile('./GameConfig.json', (err, data)=>{
-            if(err) throw err;
-
-            this.GameConfig = JSON.parse(data);
-            ServerConsole.LogEvent("successfully retrieved GameConfig.json", this.id, 0);
-        });
+        var ConfigFile = require('./GameConfig.json');
+        if(ConfigFile != null){
+            this.GameConfig = ConfigFile;
+            ServerConsole.LogEvent("Config-file were found and read successdully", this.id, 0);
+        }
+        else{
+            throw "ConfigFile could not be found!";
+        }
 
     }
 
