@@ -15,5 +15,7 @@ module.exports = class MySQL { //luo "classin", jonka sisällä tietoja pidetä�
             password: "_", 
             database: this.database
         });
+
+        console.log("Success");
     }
 }

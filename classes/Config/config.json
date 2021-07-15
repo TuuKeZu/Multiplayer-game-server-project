@@ -1,0 +1,18 @@
+[
+{
+    "debug": {
+        "show_movement_packets": false,
+        "show_attack_packets": false,
+        "show_look_packets": false,
+        "show_chat": true,
+        "show_join_requests": true,
+        "show_lobby_events": true,
+        "show_rotation_packets": true
+    },
+    "utility": {
+        "send_crash_reports": false,
+        "enable_CTRL_C": true
+    }
+    
+}
+]

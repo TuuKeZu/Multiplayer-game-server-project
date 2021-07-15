@@ -11,6 +11,8 @@ let GameLobbySettings = require('./GameLobbySettings');
 let Connection = require('../connection');
 const Vector3 = require('../PlayerData/vector3');
 const Quaternion = require('../PlayerData/quaternion');
+const shortid = require('shortid');
+const { connect } = require('http2');
 
 module.exports = class GameLobby extends LobbyBase {
     constructor(id, setting = GameLobbySettings, password = String){
@@ -26,10 +28,12 @@ module.exports = class GameLobby extends LobbyBase {
         this.GameHaveStarted = false;
         this.BLUE_kills = 0;
         this.RED_Kills = 0;
+        this.roundNumber = 1;
 
         this.GameConfig = {};
 
         this.cooldowns = [];
+        this.ShieldObjects = [];
     }
 
     OnExitLobby(connection = Connection){
@@ -62,8 +66,42 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     OnLobbyTick(){
+        let lobby = this;
         if(this.HaveStarted){
 
+            //COOLDOWNS
+            this.cooldowns.forEach(function(cooldown, index) {
+                if(cooldown.cooldown - 1 <= 0){
+                    cooldown.con.socket.emit('reset_cooldown', {ability: cooldown.ability});
+
+                    switch(cooldown.ability){
+                        case "Q":
+                            cooldown.con.player.CanCastQ = true;
+                            break;
+                        case "E":
+                            cooldown.con.player.CanCastE = true;
+                            break;
+                        case "F":
+                            cooldown.con.player.CanCastF = true;
+                            break;
+                    }
+
+                    lobby.cooldowns.splice(index, 1);
+                }
+                else{
+                    cooldown.cooldown -= 1;
+                }
+            });
+            
+            //SHIELD-OBJECTS
+            this.ShieldObjects.forEach(shield => {
+                if(shield.health - shield.lifetime_decreaser <= 0){
+
+                }
+                else{
+                    shield.health = shield.health - shield.lifetime_decreaser;
+                }
+            });
         }
     }
 
@@ -94,12 +132,16 @@ module.exports = class GameLobby extends LobbyBase {
 
         var ReturnData = {};
 
+        connection.player.Q_ability = 1;
+        connection.player.E_ability = 1;
+        connection.player.F_ability = 2;
+
 
         player1Team = "RED";
         player2Team = "BLUE";
 
-        Player1StartPosition = new Vector3(48, 15.5, 19);
-        Player2StartPosition = new Vector3(-48, 15.5, 19);
+        Player1StartPosition = new Vector3(48, 10.6, 0);
+        Player2StartPosition = new Vector3(-48, 10.6, 0);
 
         
         for (let index = 0; index < 2; index++){
@@ -113,7 +155,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: connection.player.id,
                     position: Player1StartPosition
                 }
-
+                connection.player.TEAM = player1Team;
+                connection.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData1};
             }
             
@@ -125,7 +168,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: "000",
                     position: Player2StartPosition
                 }
-
+                connection.player.TEAM = player1Team;
+                connection.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData2};
             }
 
@@ -140,7 +184,11 @@ module.exports = class GameLobby extends LobbyBase {
         console.log(ReturnData);
 
         this.connections.forEach(con => {
-            con.socket.emit('begin', {data: ReturnData});
+            con.socket.emit('begin', {data: ReturnData, abilities: {
+                Q: con.player.Q_ability,
+                E: con.player.E_ability,
+                F: con.player.F_ability
+            }});
         });
     }
 
@@ -232,15 +280,15 @@ module.exports = class GameLobby extends LobbyBase {
             player1Team = "RED";
             player2Team = "BLUE";
 
-            Player1StartPosition = new Vector3(48, 15.5, 19);
-            Player2StartPosition = new Vector3(-48, 15.5, 19);
+            Player1StartPosition = new Vector3(48, 10.6, 0);
+            Player2StartPosition = new Vector3(-48, 10.6, 0);
         }
         if(RandomIndex == 1){
             player1Team = "BLUE";
             player2Team = "RED";
 
-            Player1StartPosition = new Vector3(-48, 15.5, 19);
-            Player2StartPosition = new Vector3(48, 15.5, 19);
+            Player1StartPosition = new Vector3(-48, 10.6, 0);
+            Player2StartPosition = new Vector3(48, 10.6, 0);
         }
         
         this.connections.forEach(function(con){
@@ -254,6 +302,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player1StartPosition
                 }
+                con.player.TEAM = player1Team;
+                con.player.SpawnPosition = Player1StartPosition;
 
                 ReturnData[currentIndex] = {returnData1};
             }
@@ -266,7 +316,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player2StartPosition
                 }
-
+                con.player.TEAM = player2Team;
+                con.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData2};
             }
 
@@ -281,11 +332,20 @@ module.exports = class GameLobby extends LobbyBase {
         console.log(ReturnData);
 
         this.connections.forEach(con => {
-            con.socket.emit('begin', {data: ReturnData});
+            con.socket.emit('begin', {data: ReturnData, abilities: {
+                Q: con.player.Q_ability,
+                E: con.player.E_ability,
+                F: con.player.F_ability
+            }});
         });
     }
 
     UpdatePosition(connection = Connection, data){
+        if(!connection.player.canMove){
+            ServerConsole.LogEvent("Player is not allowed to move!");
+            return;
+        }
+
         var oPosition = connection.player.position;
 
         var DistanceTraveled = (
@@ -295,10 +355,10 @@ module.exports = class GameLobby extends LobbyBase {
         connection.player.position = new Vector3(data.X, data.Y, data.Z);
         connection.socket.broadcast.to(this.id).emit('updated_position', {
             clientID: connection.player.id,
-            position: connection.player.position
+            position: connection.player.position,
+            isFlash: false
         });
     }
-
 
     UpdateRotation(connection = Connection, data){
 
@@ -335,7 +395,6 @@ module.exports = class GameLobby extends LobbyBase {
 
     UpdateCurrentGun(connection = Connection, data){
         connection.player.CurrentGun = data.GunID;
-        console.log(data);
 
         switch(data.GunID){
             case 0:
@@ -351,7 +410,7 @@ module.exports = class GameLobby extends LobbyBase {
                 connection.player.CurrentAmmo = this.GameConfig.GunConfig.Sniper.MaxAmmo;
                 break;
             case 4:
-                connection.player.CurrentAmmo = this.GameConfig.GunConfig.StunGun.MaxAmmo;
+                this.StunAbility(connection);
                 break;
         }
     }
@@ -472,11 +531,32 @@ module.exports = class GameLobby extends LobbyBase {
                                     ServerConsole.LogEvent("Player was not allowed to shoot this gun");
                                 }
                                 break;
+                            case 4:
+                                console.log("StunGun!");
+                                if(connection.player.CanCastE){
+                                    returnData = {
+                                        clientID: connection.player.id,
+                                        gunID: connection.player.CurrentGun,
+                                        velocity: this.GameConfig.GunConfig.Sniper.velocity,
+                                        direction: new Quaternion(data.ShootDirection.x, data.ShootDirection.y, data.ShootDirection.z, data.ShootDirection.w),
+                                        position: new Vector3(data.SpawnPosition.x, data.SpawnPosition.y, data.SpawnPosition.z)
+                                    }
+
+                                    connection.player.CurrentGun = 0;
+
+                                    let data1 = {
+                                        AbilityID: "E"
+                                    }
+                                    this.GoOnCooldown(connection, data1)
+                                }
+                                else{
+                                    ServerConsole.LogEvent("Player was not allowed to shoot this gun");
+                                }
+                                break;
                 }
 
                 if(returnData != {}){
                     connection.socket.broadcast.to(this.id).emit('gun_attack_packet', returnData);
-                    console.log(returnData);
                 }
 
 
@@ -490,7 +570,6 @@ module.exports = class GameLobby extends LobbyBase {
     UseAmmo(connection = Connection, count, callback){
         if(connection.player.CurrentAmmo - count > 0){
             connection.player.CurrentAmmo -= count;
-            ServerConsole.LogEvent(connection.player.CurrentAmmo);
             return callback(true);
         }
         else{
@@ -528,6 +607,333 @@ module.exports = class GameLobby extends LobbyBase {
         }
     }
 
+    ShieldAbility(connection = Connection, data){
+
+        if(connection.player.Q_ability != this.GameConfig.AbilityConfig.Shield_A.ID){
+            ServerConsole.LogEvent("Player is not allowed to cast this ability!");
+            return;
+        }
+        if(!connection.player.CanCastQ){
+            ServerConsole.LogEvent("ability is on cooldown!");
+            return;
+        }
+
+        var Sposition = new Vector3(data.posX, data.posY, data.posZ);
+        var Srotation = new Vector3(data.rotX, data.rotY, data.rotZ);
+        var playerposition = connection.player.position;
+
+        var ObjectID = shortid.generate();
+
+        var DistanceToShield = (
+            Math.sqrt(Math.pow((playerposition.x - Sposition.x),2) + Math.pow((playerposition.y - Sposition.y),2) + Math.pow((playerposition.z - Sposition.z),2))
+        );
+
+        if(DistanceToShield > this.GameConfig.AbilityConfig.Shield_A.range){
+            ServerConsole.LogEvent("Shield.A maximium range limit was hit!", this.id, 2);
+            return;
+        }
+
+        this.ShieldObjects.push({
+            lifetime_decreaser: (this.GameConfig.AbilityConfig.Shield_A.max_health / this.GameConfig.AbilityConfig.Shield_A.lifetime),
+            ID: ObjectID,
+            health: this.GameConfig.AbilityConfig.Shield_A.max_health 
+        });
+
+        this.connections.forEach(con =>{
+            con.socket.emit('shield_object', {
+                ID: ObjectID,
+                position: Sposition,
+                rotation: Srotation,
+                lifetime: this.GameConfig.AbilityConfig.Shield_A.lifetime,
+                health: this.GameConfig.AbilityConfig.Shield_A.max_health
+            });
+        });
+
+        ServerConsole.LogEvent("created shield object with distance to player of : "+DistanceToShield);
+
+        data = {
+            AbilityID: "Q"
+        }
+
+        this.GoOnCooldown(connection, data)
+    }
+
+    HealAbility(connection = Connection, data){
+
+        if(connection.player.E_ability != this.GameConfig.AbilityConfig.Heal_A.ID){
+            ServerConsole.LogEvent("Player is not allowed to cast this ability!");
+            return;
+        }
+
+        if(!connection.player.CanCastE){
+            ServerConsole.LogEvent("ability is on cooldown!");
+            return;
+        }
+
+        var healAmount = this.GameConfig.AbilityConfig.Heal_A.amount;
+        if(connection.player.health + healAmount > 400){
+            this.UpdateHealth(connection, 400);
+        }
+        else{
+            this.UpdateHealth(connection, connection.player.health + healAmount);
+        }
+
+        data = {
+            AbilityID: "F"
+        }
+
+        this.GoOnCooldown(connection, data);
+    }
+
+    FlashAbility(connection = Connection, data){
+
+        if(connection.player.F_ability != this.GameConfig.AbilityConfig.Flash_A.ID){
+            ServerConsole.LogEvent("Player is not allowed to cast this ability!");
+            return;
+        }
+
+        if(!connection.player.CanCastF){
+            ServerConsole.LogEvent("ability is on cooldown!");
+            return;
+        }
+
+        let fPosition = new Vector3(data.X, data.Y, data.Z);
+        let playerposition = connection.player.position;
+
+        var DistanceToteleport = (
+            Math.sqrt(Math.pow((playerposition.x - fPosition.x),2) + Math.pow((playerposition.y - fPosition.y),2) + Math.pow((playerposition.z - fPosition.z),2))
+        );
+
+        data = {
+            AbilityID: "F"
+        }
+
+        this.GoOnCooldown(connection, data);
+
+        this.TeleportPlayer(connection, fPosition);
+    }
+
+    StunAbility(connection = Connection){
+        connection.player.CurrentGun = 4;
+        connection.player.CurrentAmmo = 1;
+    }
+
+    GoOnCooldown(connection = Connection, data){
+        switch(data.AbilityID){
+            case "Q":
+                connection.player.CanCastQ = false;
+
+                this.cooldowns.push({
+                    con: connection,
+                    ability: "Q",
+                    cooldown: this.GameConfig.AbilityConfig.CoolDowns.Q
+                });
+
+                ServerConsole.LogEvent("added ability Q to cooldown array!");
+                break;
+            case "E":
+                connection.player.CanCastE = false;
+
+                this.cooldowns.push({
+                    con: connection,
+                    ability: "E",
+                    cooldown: this.GameConfig.AbilityConfig.CoolDowns.E
+                });
+
+                ServerConsole.LogEvent("added ability E to cooldown array!");
+                break;
+            case "F":
+                connection.player.CanCastF = false;
+
+                this.cooldowns.push({
+                    con: connection,
+                    ability: "F",
+                    cooldown: this.GameConfig.AbilityConfig.CoolDowns.F
+                });
+
+                ServerConsole.LogEvent("added ability F to cooldown array!");
+                break;
+        }
+    }
+
+    OnProjectileHit(connection = Connection, data){
+        console.log(data);
+
+        if(data.IsExplosive){
+            this.connections.forEach(con => {
+                var playerposition = con.player.position;
+                var DistanceToPlayer = (
+                    Math.sqrt(Math.pow((playerposition.x - data.position.x),2) + Math.pow((playerposition.y - data.position.y),2) + Math.pow((playerposition.z - data.position.z),2))
+                );
+
+                if(DistanceToPlayer < 4.9){
+                    var Damage = (this.GameConfig.GunConfig.RPG.damage - (15 * (3*DistanceToPlayer)));
+                    this.UpdateHealth(con, con.player.health - Damage);
+                }
+            });
+        }
+        else{
+            if(data.TargetID != null){
+                let target = this.ConnectionsByIDs[data.TargetID];
+                let playerposition = target.player.position;
+
+                var DistanceToPlayer = (
+                    Math.sqrt(Math.pow((playerposition.x - data.position.x),2) + Math.pow((playerposition.y - data.position.y),2) + Math.pow((playerposition.z - data.position.z),2))
+                );
+                
+                if(DistanceToPlayer < 1.50){
+                    let bulletGunID = data.GunID;
+                    let damage = 0;
+                    
+
+                    switch(bulletGunID){
+                        case 0:
+                            damage = this.GameConfig.GunConfig.AK47.damage;
+                            break;
+                        case 2:
+                            damage = this.GameConfig.GunConfig.ShotGun.damage;
+                            break;
+                        case 3:
+                            damage = this.GameConfig.GunConfig.Sniper.damage;
+                            break;
+                        case 4:
+                            this.StunPlayer(target);
+                            break;
+                    }
+
+                    this.UpdateHealth(target, target.player.health - damage);
+                }
+            }
+            
+        }
+    }
+
+    UpdateHealth(connection = Connection, health){
+        connection.player.health = health;
+        if(health > 0){
+            this.connections.forEach(con =>{
+                con.socket.emit("updated_health", {
+                    clientID: con.player.id,
+                    health: con.player.health
+                });
+            })
+        }
+        else{
+            this.PlayerKillEvent(connection);
+        }
+    }
+
+    StunPlayer(connection = Connection){
+        connection.player.canMove = false;
+        ServerConsole.LogEvent("stunned player!");
+
+        this.connections.forEach(con => {
+            con.socket.emit('stunned', {
+                clientID: connection.player.id,
+                duration: this.GameConfig.AbilityConfig.Stun_A.duration
+            });
+        });
+
+        setTimeout(() => {
+            connection.player.canMove = true;
+        }, this.GameConfig.AbilityConfig.Stun_A.duration);
+    }
+
+    PlayerKillEvent(connection){
+        let player = connection.player;
+        let playerDeathPosition = connection.player.position;
+
+        if(player.IsAlive){
+    
+            let deathpacketData = {
+                clientID: player.id,
+                position: playerDeathPosition,
+                rotation: player.rotation
+            }
+            
+            this.connections.forEach(con => {
+                con.socket.emit('death_packet', deathpacketData);
+            });
+    
+            switch(connection.player.TEAM){
+                case "RED":
+                    this.BLUE_kills += 1;
+                    ServerConsole.LogEvent("BLUE team scored");
+                    break;
+                case "BLUE":
+                    this.RED_kills += 1;
+                    ServerConsole.LogEvent("RED team scored");
+                    break;
+            }
+
+            ServerConsole.LogEvent(this.BLUE_kills + " || "+this.RED_Kills);
+    
+            player.canMove = false;
+            player.IsAlive = false;
+
+            this.ResetRound();
+
+        }
+    }
+
+    ResetRound(){
+        this.connections.forEach(con => {
+            this.MovePlayer(con, con.player.SpawnPosition);
+            
+            con.socket.emit('round_end', {
+                blue: this.BLUE_kills,
+                red: this.RED_Kills,
+                round: this.roundNumber
+            });
+
+            con.player.IsAlive = true;
+            this.UpdateHealth(con, 400);
+        });
+
+        this.roundNumber++;
+
+        setTimeout(() => {
+
+            this.connections.forEach(con => {
+                con.socket.emit('round_start');
+                con.player.canMove = true;
+                con.player.canMove = true;
+            });
+
+        }, 3000);
+    }
+
+    TeleportPlayer(connection = Connection, NewPosition){
+        connection.player.canMove = false;
+        connection.player.position = NewPosition;
+
+        this.connections.forEach(con => {
+            con.socket.emit('updated_position', {
+                clientID: connection.player.id,
+                position: connection.player.position,
+                isFlash: true
+            })
+        });
+        connection.player.canMove = true;
+
+        ServerConsole.LogEvent("teleported player successfully!");
+    }
+
+    MovePlayer(connection = Connection, NewPosition){
+        connection.player.canMove = false;
+        connection.player.position = NewPosition;
+
+        this.connections.forEach(con => {
+            con.socket.emit('updated_position', {
+                clientID: connection.player.id,
+                position: connection.player.position,
+                isFlash: false
+            })
+        });
+        connection.player.canMove = true;
+
+        ServerConsole.LogEvent("Moved player successfully!");
+    }
 
     removePlayer(connection = Connection){
         let lobby = this;
@@ -540,6 +946,4 @@ module.exports = class GameLobby extends LobbyBase {
     AbortGame(connection = Connection, reason){
         connection.server.onExitGame(connection, reason);
     }
-
-    
 }

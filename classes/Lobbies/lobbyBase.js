@@ -1,15 +1,13 @@
 const Console = require('../Config/console');
 const ServerConsole = new Console();
 
-const config = require('../Config/config');
-const C = new config();
-
 let Connection = require('../connection');
 
 module.exports = class LobbyBase{
     constructor(id){
         this.id = id;
         this.connections = [];
+        this.ConnectionsByIDs = [];
         this.connection_IDs = [];
     }
 
@@ -19,6 +17,7 @@ module.exports = class LobbyBase{
 
         lobby.connections.push(connection);
         lobby.connection_IDs.push(player.id);
+        lobby.ConnectionsByIDs[player.id] = connection;
 
         player.lobby = lobby.id;
         connection.lobby = lobby;
@@ -42,6 +41,8 @@ module.exports = class LobbyBase{
         if(index2 > -1){
             lobby.connection_IDs.splice(index2, 1);
         }
+
+        delete this.ConnectionsByIDs[player.id];
 
         ServerConsole.LogEvent("User has left the lobby", this.id, 1);
     }
