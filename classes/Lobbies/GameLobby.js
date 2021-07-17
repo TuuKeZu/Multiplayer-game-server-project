@@ -28,6 +28,7 @@ module.exports = class GameLobby extends LobbyBase {
         this.GameHaveStarted = false;
         this.BLUE_kills = 0;
         this.RED_Kills = 0;
+        this.roundNumber = 1;
 
         this.GameConfig = {};
 
@@ -139,8 +140,8 @@ module.exports = class GameLobby extends LobbyBase {
         player1Team = "RED";
         player2Team = "BLUE";
 
-        Player1StartPosition = new Vector3(48, 15.5, 19);
-        Player2StartPosition = new Vector3(-48, 15.5, 19);
+        Player1StartPosition = new Vector3(48, 10.6, 0);
+        Player2StartPosition = new Vector3(-48, 10.6, 0);
 
         
         for (let index = 0; index < 2; index++){
@@ -154,7 +155,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: connection.player.id,
                     position: Player1StartPosition
                 }
-
+                connection.player.TEAM = player1Team;
+                connection.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData1};
             }
             
@@ -166,7 +168,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: "000",
                     position: Player2StartPosition
                 }
-
+                connection.player.TEAM = player1Team;
+                connection.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData2};
             }
 
@@ -277,15 +280,15 @@ module.exports = class GameLobby extends LobbyBase {
             player1Team = "RED";
             player2Team = "BLUE";
 
-            Player1StartPosition = new Vector3(48, 15.5, 19);
-            Player2StartPosition = new Vector3(-48, 15.5, 19);
+            Player1StartPosition = new Vector3(48, 10.6, 0);
+            Player2StartPosition = new Vector3(-48, 10.6, 0);
         }
         if(RandomIndex == 1){
             player1Team = "BLUE";
             player2Team = "RED";
 
-            Player1StartPosition = new Vector3(-48, 15.5, 19);
-            Player2StartPosition = new Vector3(48, 15.5, 19);
+            Player1StartPosition = new Vector3(-48, 10.6, 0);
+            Player2StartPosition = new Vector3(48, 10.6, 0);
         }
         
         this.connections.forEach(function(con){
@@ -299,6 +302,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player1StartPosition
                 }
+                con.player.TEAM = player1Team;
+                con.player.SpawnPosition = Player1StartPosition;
 
                 ReturnData[currentIndex] = {returnData1};
             }
@@ -311,7 +316,8 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player2StartPosition
                 }
-
+                con.player.TEAM = player2Team;
+                con.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData2};
             }
 
@@ -388,7 +394,6 @@ module.exports = class GameLobby extends LobbyBase {
 
     UpdateCurrentGun(connection = Connection, data){
         connection.player.CurrentGun = data.GunID;
-        console.log(data);
 
         switch(data.GunID){
             case 0:
@@ -404,7 +409,7 @@ module.exports = class GameLobby extends LobbyBase {
                 connection.player.CurrentAmmo = this.GameConfig.GunConfig.Sniper.MaxAmmo;
                 break;
             case 4:
-                connection.player.CurrentAmmo = this.GameConfig.GunConfig.StunGun.MaxAmmo;
+                this.StunAbility(connection);
                 break;
         }
     }
@@ -525,6 +530,28 @@ module.exports = class GameLobby extends LobbyBase {
                                     ServerConsole.LogEvent("Player was not allowed to shoot this gun");
                                 }
                                 break;
+                            case 4:
+                                console.log("StunGun!");
+                                if(connection.player.CanCastE){
+                                    returnData = {
+                                        clientID: connection.player.id,
+                                        gunID: connection.player.CurrentGun,
+                                        velocity: this.GameConfig.GunConfig.Sniper.velocity,
+                                        direction: new Quaternion(data.ShootDirection.x, data.ShootDirection.y, data.ShootDirection.z, data.ShootDirection.w),
+                                        position: new Vector3(data.SpawnPosition.x, data.SpawnPosition.y, data.SpawnPosition.z)
+                                    }
+
+                                    connection.player.CurrentGun = 0;
+
+                                    let data1 = {
+                                        AbilityID: "E"
+                                    }
+                                    this.GoOnCooldown(connection, data1)
+                                }
+                                else{
+                                    ServerConsole.LogEvent("Player was not allowed to shoot this gun");
+                                }
+                                break;
                 }
 
                 if(returnData != {}){
@@ -542,7 +569,6 @@ module.exports = class GameLobby extends LobbyBase {
     UseAmmo(connection = Connection, count, callback){
         if(connection.player.CurrentAmmo - count > 0){
             connection.player.CurrentAmmo -= count;
-            ServerConsole.LogEvent(connection.player.CurrentAmmo);
             return callback(true);
         }
         else{
@@ -769,6 +795,8 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     OnProjectileHit(connection = Connection, data){
+        console.log(data);
+
         if(data.IsExplosive){
             this.connections.forEach(con => {
                 var playerposition = con.player.position;
@@ -783,7 +811,38 @@ module.exports = class GameLobby extends LobbyBase {
             });
         }
         else{
+            if(data.TargetID != null){
+                let target = this.ConnectionsByIDs[data.TargetID];
+                let playerposition = target.player.position;
 
+                var DistanceToPlayer = (
+                    Math.sqrt(Math.pow((playerposition.x - data.position.x),2) + Math.pow((playerposition.y - data.position.y),2) + Math.pow((playerposition.z - data.position.z),2))
+                );
+                
+                if(DistanceToPlayer < 1.50){
+                    let bulletGunID = data.GunID;
+                    let damage = 0;
+                    
+
+                    switch(bulletGunID){
+                        case 0:
+                            damage = this.GameConfig.GunConfig.AK47.damage;
+                            break;
+                        case 2:
+                            damage = this.GameConfig.GunConfig.ShotGun.damage;
+                            break;
+                        case 3:
+                            damage = this.GameConfig.GunConfig.Sniper.damage;
+                            break;
+                        case 4:
+                            this.StunPlayer(target);
+                            break;
+                    }
+
+                    this.UpdateHealth(target, target.player.health - damage);
+                }
+            }
+            
         }
     }
 
@@ -798,6 +857,100 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     TeleportPlayer(connection = Connection, NewPosition = Vector3){
+        if(health > 0){
+            this.connections.forEach(con =>{
+                con.socket.emit("updated_health", {
+                    clientID: con.player.id,
+                    health: con.player.health
+                });
+            })
+        }
+        else{
+            this.PlayerKillEvent(connection);
+        }
+    }
+
+    StunPlayer(connection = Connection){
+        connection.player.canMove = false;
+        ServerConsole.LogEvent("stunned player!");
+
+        this.connections.forEach(con => {
+            con.socket.emit('stunned', {
+                clientID: connection.player.id,
+                duration: this.GameConfig.AbilityConfig.Stun_A.duration
+            });
+        });
+
+        setTimeout(() => {
+            connection.player.canMove = true;
+        }, this.GameConfig.AbilityConfig.Stun_A.duration);
+    }
+
+    PlayerKillEvent(connection){
+        let player = connection.player;
+        let playerDeathPosition = connection.player.position;
+
+        if(player.IsAlive){
+    
+            let deathpacketData = {
+                clientID: player.id,
+                position: playerDeathPosition,
+                rotation: player.rotation
+            }
+            
+            this.connections.forEach(con => {
+                con.socket.emit('death_packet', deathpacketData);
+            });
+    
+            switch(connection.player.TEAM){
+                case "RED":
+                    this.BLUE_kills += 1;
+                    ServerConsole.LogEvent("BLUE team scored");
+                    break;
+                case "BLUE":
+                    this.RED_kills += 1;
+                    ServerConsole.LogEvent("RED team scored");
+                    break;
+            }
+
+            ServerConsole.LogEvent(this.BLUE_kills + " || "+this.RED_Kills);
+    
+            player.canMove = false;
+            player.IsAlive = false;
+
+            this.ResetRound();
+
+        }
+    }
+
+    ResetRound(){
+        this.connections.forEach(con => {
+            this.MovePlayer(con, con.player.SpawnPosition);
+            
+            con.socket.emit('round_end', {
+                blue: this.BLUE_kills,
+                red: this.RED_Kills,
+                round: this.roundNumber
+            });
+
+            con.player.IsAlive = true;
+            this.UpdateHealth(con, 400);
+        });
+
+        this.roundNumber++;
+
+        setTimeout(() => {
+
+            this.connections.forEach(con => {
+                con.socket.emit('round_start');
+                con.player.canMove = true;
+                con.player.canMove = true;
+            });
+
+        }, 3000);
+    }
+
+    TeleportPlayer(connection = Connection, NewPosition){
         connection.player.canMove = false;
         connection.player.position = NewPosition;
 
@@ -811,6 +964,22 @@ module.exports = class GameLobby extends LobbyBase {
         connection.player.canMove = true;
 
         ServerConsole.LogEvent("teleported player successfully!");
+    }
+
+    MovePlayer(connection = Connection, NewPosition){
+        connection.player.canMove = false;
+        connection.player.position = NewPosition;
+
+        this.connections.forEach(con => {
+            con.socket.emit('updated_position', {
+                clientID: connection.player.id,
+                position: connection.player.position,
+                isFlash: false
+            })
+        });
+        connection.player.canMove = true;
+
+        ServerConsole.LogEvent("Moved player successfully!");
     }
 
     removePlayer(connection = Connection){

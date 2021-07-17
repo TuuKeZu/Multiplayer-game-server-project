@@ -55,8 +55,14 @@
             "amount": 120,
             "ID": 1
         },
+        "Stun_A": {
+            "duration": 4,
+            "ID": 1
+        },
         "Flame_A": {
-            "duration": 5
+            "DPS": 10,
+            "cast_time": 10,
+            "ID": 2
         }
 
     }

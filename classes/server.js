@@ -1,9 +1,6 @@
 const Console = require('./Config/console');
 const ServerConsole = new Console();
 
-const config = require('./Config/config');
-const C = new config();
-
 const Config = true;
 let Player = require('./PlayerData/player');
 

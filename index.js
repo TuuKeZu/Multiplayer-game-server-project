@@ -6,9 +6,6 @@
 const io = require('socket.io')(process.env.PORT || 52300);  
 const Server = require('./classes/server.js');
 
-const config = require('./classes/Config/config');
-const C = new config();
-
 const Login_System = require('./classes/MySQL/Login-System');
 const LoginSystem = new Login_System();
 

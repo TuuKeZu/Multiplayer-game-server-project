@@ -346,7 +346,7 @@ module.exports = class Connection{
             connection.player.packetFrequency++;
 
             if(data != null && connection.player.lobby != 0){
-                if(Object.keys(data).length == 3){
+                if(Object.keys(data).length == 4){
                     if(JSON.stringify(data).length < 10000){
                         
                         connection.server.lobbies[connection.player.lobby].OnProjectileHit(connection, data);
