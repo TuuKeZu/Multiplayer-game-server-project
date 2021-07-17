@@ -29,8 +29,9 @@ module.exports = class Player {
         this.AnimationScopingState = false;
         this.AnimationDashingState = false;
         
-        this.health = 100;
+        this.health = 400;
         this.IsAlive = true;
+        this.canMove = true;
 
         this.CanShoot0 = true;
         this.CanShoot1 = true;
@@ -41,6 +42,8 @@ module.exports = class Player {
         this.CanCastQ = true;
         this.CanCastE = true;
         this.CanCastF = true;
+
+        this.IsCastingE = false;
 
         this.lookingAt = null;
         this.team = null;

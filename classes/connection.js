@@ -20,24 +20,10 @@ module.exports = class Connection{
         let socket = connection.socket;
         let server = connection.server;
         let player = connection.player;
+        player.lobby = 0;
 
         socket.on('disconnect', function(data){
             server.OnDisconnected(connection);
-        });
-
-        socket.on('ping', function(data){
-            connection.player.packetFrequency += 1;
-            if(data != null){
-                if(Object.keys(data).length == 3){
-                    if(JSON.stringify(data).length < 10000){
-                        ServerConsole.LogEvent("Updated position");
-                    }
-                    else{
-                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
-                    }
-                }
-            }
-            
         });
 
         socket.on('login_session', function(data){
@@ -229,6 +215,11 @@ module.exports = class Connection{
             connection.player.packetFrequency++;
             connection.server.OnExitQueue(connection);
         });
+
+        socket.on('exit_game', function(data){
+            connection.player.packetFrequency++;
+            connection.server.OnSwitchLobby(connection, 0);
+        });
         
 
         socket.on('request_lobby_list', function(data){
@@ -237,11 +228,12 @@ module.exports = class Connection{
         });
 
 
-        //------------------------------------------------------------
+        //Gamelobby functions
 
         socket.on('update_position', function(data){
             connection.player.packetFrequency++;
-            if(data != null && data.X != null && data.Y != null && data.Z != null){
+
+            if(data != null && data.X != null && data.Y != null && data.Z != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 3){
                     if(JSON.stringify(data).length < 10000){
                         
@@ -256,7 +248,7 @@ module.exports = class Connection{
 
         socket.on('update_rotation', function(data){
             connection.player.packetFrequency++;
-            if(data != null && data.X != null && data.Y != null && data.Z != null){
+            if(data != null && data.X != null && data.Y != null && data.Z != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 3){
                     if(JSON.stringify(data).length < 10000){
 
@@ -271,7 +263,8 @@ module.exports = class Connection{
 
         socket.on('update_velocity', function(data){
             connection.player.packetFrequency++;
-            if(data != null && data.X != null && data.Z != null){
+
+            if(data != null && data.X != null && data.Z != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 2){
                     if(JSON.stringify(data).length < 10000){
 
@@ -286,7 +279,8 @@ module.exports = class Connection{
 
         socket.on('update_animation_status', function(data){
             connection.player.packetFrequency++;
-            if(data != null && data.IsScoping != null && data.IsDashing != null){
+
+            if(data != null && data.IsScoping != null && data.IsDashing != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 2){
                     if(JSON.stringify(data).length < 10000){
 
@@ -301,7 +295,8 @@ module.exports = class Connection{
 
         socket.on('update_current_gun', function(data){
             connection.player.packetFrequency++;
-            if(data != null){
+
+            if(data != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 1){
                     if(JSON.stringify(data).length < 10000){
 
@@ -317,7 +312,8 @@ module.exports = class Connection{
 
         socket.on('gun_attack', function(data){
             connection.player.packetFrequency++;
-            if(data != null){
+
+            if(data != null && connection.player.lobby != 0){
                 if(Object.keys(data).length == 3){
                     if(JSON.stringify(data).length < 10000){
 
@@ -329,7 +325,64 @@ module.exports = class Connection{
                 }
             }
         });
-            
+
+        socket.on('shield_ability', function(data){
+            connection.player.packetFrequency++;
+
+            if(data != null && connection.player.lobby != 0){
+                if(Object.keys(data).length == 6){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].ShieldAbility(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('projectile_hit_packet', function(data){
+            connection.player.packetFrequency++;
+
+            if(data != null && connection.player.lobby != 0){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+                        
+                        connection.server.lobbies[connection.player.lobby].OnProjectileHit(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('flash_ability', function(data){
+            connection.player.packetFrequency++;
+
+            if(data != null && connection.player.lobby != 0){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].FlashAbility(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
+        socket.on('heal_ability', function(data){
+            connection.player.packetFrequency++;
+            connection.server.lobbies[connection.player.lobby].HealAbility(connection, data);
+        });
+
+        socket.on('flamethower_ability', function(data){
+            connection.player.packetFrequency++;
+            connection.server.lobbies[connection.player.lobby].FlameAbility(connection, data);
+        });
 
         socket.on('debug', function(data){
             connection.server.OnForceSimulateGameEnviroment(connection);

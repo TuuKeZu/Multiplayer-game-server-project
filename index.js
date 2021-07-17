@@ -160,7 +160,7 @@ async function SendCrashReport(error){
 process.on('uncaughtException', (error)  => {
     
     ServerConsole.LogEvent("Server shutting down...", null, 2);
-    io.sockets.emit("kicked", {reason: "Server is shutting down"});
+    io.emit("kicked", {reason: "Server is shutting down"});
     ServerConsole.LogEvent(error.stack, null, 2);
     
     setTimeout(() => {
@@ -170,7 +170,7 @@ process.on('uncaughtException', (error)  => {
 
 process.on('SIGINT', function(){
     ServerConsole.LogEvent("Server shutting down...", null, 2);
-    io.sockets.emit("kicked", {reason: "Server is shutting down"});
+    io.emit("kicked", {reason: "Server is shutting down"});
 
     setTimeout(() => {
         process.exit(1);

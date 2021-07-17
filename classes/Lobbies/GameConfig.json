@@ -41,14 +41,23 @@
             "E": 10,
             "F": 30
         },
-        "Shield.A": {
-            "range": 15
+        "Shield_A": {
+            "range": 15,
+            "max_health": 1600,
+            "lifetime": 20,
+            "ID": 1
         },
-        "Flash.A": {
-            "range": 10
+        "Flash_A": {
+            "range": 10,
+            "ID": 2
         },
-        "Heal.A": {
-            "amount": 40
+        "Heal_A": {
+            "amount": 120,
+            "ID": 1
+        },
+        "Flame_A": {
+            "duration": 5
         }
+
     }
 }
