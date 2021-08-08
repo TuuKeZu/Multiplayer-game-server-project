@@ -374,6 +374,22 @@ module.exports = class Connection{
             }
         });
 
+        socket.on('flamethower_attack', function(data){
+            connection.player.packetFrequency++;
+
+            if(data != null && connection.player.lobby != 0){
+                if(Object.keys(data).length == 3){
+                    if(JSON.stringify(data).length < 10000){
+
+                        connection.server.lobbies[connection.player.lobby].FlameAttack(connection, data);
+                    }
+                    else{
+                        connection.server.ForceDisconnect(this, "You are sending too big packets!");
+                    }
+                }
+            }
+        });
+
         socket.on('heal_ability', function(data){
             connection.player.packetFrequency++;
             connection.server.lobbies[connection.player.lobby].HealAbility(connection, data);
@@ -386,6 +402,10 @@ module.exports = class Connection{
 
         socket.on('debug', function(data){
             connection.server.OnForceSimulateGameEnviroment(connection);
+        });
+
+        socket.on('force_end', function(data){
+            connection.server.lobbies[connection.player.lobby].EndGame(connection);
         });
         
     }

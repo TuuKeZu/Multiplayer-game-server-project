@@ -1,7 +1,7 @@
 const mysql = require('./MySQLconnection');
 const Connection = new mysql();
 
-const Console = require('../Config/console');
+const Console = require('../Config/console');  
 const ServerConsole = new Console();
 
 let Connection_ = require('../connection');

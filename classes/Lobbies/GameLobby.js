@@ -9,10 +9,14 @@ const CONFIGFILE = require('./GameConfig.json');
 let LobbyBase = require('./lobbyBase');
 let GameLobbySettings = require('./GameLobbySettings');
 let Connection = require('../connection');
+
 const Vector3 = require('../PlayerData/vector3');
 const Quaternion = require('../PlayerData/quaternion');
 const shortid = require('shortid');
-const { connect } = require('http2');
+
+const Game_History_Manager = require('../MySQL/GameHistoryManager');
+const GameHistoryManager = new Game_History_Manager();
+let GameDataObject = require('../PlayerData/Game-Data');
 
 module.exports = class GameLobby extends LobbyBase {
     constructor(id, setting = GameLobbySettings, password = String){
@@ -23,17 +27,20 @@ module.exports = class GameLobby extends LobbyBase {
         this.IsServerGenerated = null;
         this.connection_count = 0;
 
-        this.timeElapsed = setting.timeInMin*60;
+        this.timeElapsed = 0;
+        this.RoundTimeElapsed = 0;
         this.HaveStarted = false;
         this.GameHaveStarted = false;
         this.BLUE_kills = 0;
         this.RED_Kills = 0;
         this.roundNumber = 1;
+        this.RoundIsActive = false;
 
         this.GameConfig = {};
 
         this.cooldowns = [];
         this.ShieldObjects = [];
+        this.BurningPlayers = [];
     }
 
     OnExitLobby(connection = Connection){
@@ -68,6 +75,16 @@ module.exports = class GameLobby extends LobbyBase {
     OnLobbyTick(){
         let lobby = this;
         if(this.HaveStarted){
+            //TIMERS
+
+            if(this.RoundIsActive){
+                this.timeElapsed += 1;
+                this.RoundTimeElapsed -= 1;
+
+                if(this.RoundTimeElapsed < 1){
+                    this.ResetRound();
+                }
+            }
 
             //COOLDOWNS
             this.cooldowns.forEach(function(cooldown, index) {
@@ -102,6 +119,14 @@ module.exports = class GameLobby extends LobbyBase {
                     shield.health = shield.health - shield.lifetime_decreaser;
                 }
             });
+
+            //BURNING PLAYERS
+            this.BurningPlayers.forEach(con => {
+                this.UpdateHealth(con, con.player.health - this.GameConfig.AbilityConfig.Flame_A.DPS);
+                con.socket.emit("burned", {clientID: con.player.id});
+                con.socket.broadcast.to(this.id).emit("burned", {clientID: con.player.id});
+            });
+
         }
     }
 
@@ -122,6 +147,7 @@ module.exports = class GameLobby extends LobbyBase {
     ForceStartGame(connection = Connection){
         this.HaveStarted = true;
         this.GameHaveStarted = true;
+        connection.player.canMove = true;
 
         var player1Team = "";
         var player2Team = "";
@@ -316,6 +342,7 @@ module.exports = class GameLobby extends LobbyBase {
                     clientID: con.player.id,
                     position: Player2StartPosition
                 }
+
                 con.player.TEAM = player2Team;
                 con.player.SpawnPosition = Player2StartPosition;
                 ReturnData[currentIndex] = {returnData2};
@@ -338,6 +365,15 @@ module.exports = class GameLobby extends LobbyBase {
                 F: con.player.F_ability
             }});
         });
+
+        setTimeout(() => {
+            this.connections.forEach(con => {
+                con.socket.emit('round_start');
+                con.player.canMove = true;
+                this.RoundTimeElapsed = 300;
+                this.RoundIsActive = true;
+            });
+        }, 5000);
     }
 
     UpdatePosition(connection = Connection, data){
@@ -409,7 +445,6 @@ module.exports = class GameLobby extends LobbyBase {
                 connection.player.CurrentAmmo = this.GameConfig.GunConfig.Sniper.MaxAmmo;
                 break;
             case 4:
-                this.StunAbility(connection);
                 break;
         }
     }
@@ -714,7 +749,7 @@ module.exports = class GameLobby extends LobbyBase {
 
     FlameAbility(connection = Connection){
         if(connection.player.CanCastE){
-            connection.socket.broadcast.to(this.id).emit("flamethower_ability_start");
+            connection.socket.broadcast.to(this.id).emit("flamethower_ability_start", {clientID: connection.player.id});
             connection.player.IsCastingE = true;
 
             let data = {
@@ -726,17 +761,24 @@ module.exports = class GameLobby extends LobbyBase {
                 this.GoOnCooldown(connection, data);
                 connection.player.IsCastingE = false;
 
+                this.BurningPlayers.forEach(con => {
+                    this.stopPlayerBurning(con);
+                });
+
             }, this.GameConfig.AbilityConfig.Flame_A.duration*1000);
         }
     }
 
     FlameAttack(connection = Connection, data){
-        if(!connection.player.IsCastingE){
-            return;
-        }
+
         if(data.IsEnter){
             if(this.connection_IDs.includes(data.clientID)){
-                this.BurnPlayer();
+                if(connection.player.IsCastingE){
+                    this.BurnPlayer(this.ConnectionsByIDs[data.clientID]);
+                }
+                else{
+                    ServerConsole.LogEvent("Cannot burn Player! user is not casting E");
+                }
             }
             else{
                 ServerConsole.LogEvent("player doesnt exist!");
@@ -744,16 +786,26 @@ module.exports = class GameLobby extends LobbyBase {
         }
         else{
             if(this.connection_IDs.includes(data.clientID)){
-
+                this.stopPlayerBurning(this.ConnectionsByIDs[data.clientID]);
             }
             else{
-                ServerConsole.LogEvent("player doesnt exist!");
+                ServerConsole.LogEvent("player doesn't exit in current Context!");
             }
         }
     }
 
-    BurnPlayer(){
+    BurnPlayer(connection = Connection){
+        ServerConsole.LogEvent("Player added to the burning entities list")
+        if(!this.BurningPlayers.includes(connection)){
+            this.BurningPlayers.push(connection);
+        }
+    }
 
+    stopPlayerBurning(connection = Connection){
+        ServerConsole.LogEvent("Player removed from the burning entities list")
+        if(this.BurningPlayers.includes(connection)){
+            this.BurningPlayers.splice(this.BurningPlayers.indexOf(connection), 1);
+        }
     }
 
     GoOnCooldown(connection = Connection, data){
@@ -805,6 +857,8 @@ module.exports = class GameLobby extends LobbyBase {
                 );
 
                 if(DistanceToPlayer < 4.9){
+                    ServerConsole.LogEvent("hit target! "+con.player.id);
+
                     var Damage = (this.GameConfig.GunConfig.RPG.damage - (15 * (3*DistanceToPlayer)));
                     this.UpdateHealth(con, con.player.health - Damage);
                 }
@@ -847,21 +901,12 @@ module.exports = class GameLobby extends LobbyBase {
     }
 
     UpdateHealth(connection = Connection, health){
-        connection.player.health = health;
-        this.connections.forEach(con =>{
-            con.socket.emit("updated_health", {
-                clientID: con.player.id,
-                health: con.player.health
-            });
-        })
-    }
-
-    TeleportPlayer(connection = Connection, NewPosition = Vector3){
         if(health > 0){
+            connection.player.health = health;
             this.connections.forEach(con =>{
                 con.socket.emit("updated_health", {
-                    clientID: con.player.id,
-                    health: con.player.health
+                    clientID: connection.player.id,
+                    health: connection.player.health
                 });
             })
         }
@@ -901,29 +946,35 @@ module.exports = class GameLobby extends LobbyBase {
             this.connections.forEach(con => {
                 con.socket.emit('death_packet', deathpacketData);
             });
-    
+
+
             switch(connection.player.TEAM){
                 case "RED":
                     this.BLUE_kills += 1;
-                    ServerConsole.LogEvent("BLUE team scored");
+                    ServerConsole.LogEvent(this.BLUE_kills + " || "+this.RED_Kills);
+    
+                    player.canMove = false;
+                    player.IsAlive = false;
+
+                    this.ResetRound();
                     break;
                 case "BLUE":
-                    this.RED_kills += 1;
-                    ServerConsole.LogEvent("RED team scored");
+                    this.RED_Kills += 1;
+                    ServerConsole.LogEvent(this.BLUE_kills + " || "+this.RED_Kills);
+    
+                    player.canMove = false;
+                    player.IsAlive = false;
+        
+                    this.ResetRound();
                     break;
             }
-
-            ServerConsole.LogEvent(this.BLUE_kills + " || "+this.RED_Kills);
-    
-            player.canMove = false;
-            player.IsAlive = false;
-
-            this.ResetRound();
 
         }
     }
 
     ResetRound(){
+        this.RoundIsActive = false;
+
         this.connections.forEach(con => {
             this.MovePlayer(con, con.player.SpawnPosition);
             
@@ -937,17 +988,88 @@ module.exports = class GameLobby extends LobbyBase {
             this.UpdateHealth(con, 400);
         });
 
+        if(this.roundNumber == 5){
+            setTimeout(() => {
+                this.EndGame();
+            }, 2000);
+        }
+        else{
+            setTimeout(() => {
+
+                this.connections.forEach(con => {
+                    con.socket.emit('round_start');
+                    con.player.canMove = true;
+                    this.RoundTimeElapsed = 300;
+                    this.RoundIsActive = true;
+                });
+    
+            }, 3000);
+        }
+
         this.roundNumber++;
+    }
 
-        setTimeout(() => {
+    EndGame(){
+        this.HaveStarted = false;
 
-            this.connections.forEach(con => {
-                con.socket.emit('round_start');
-                con.player.canMove = true;
-                con.player.canMove = true;
-            });
+        var winnerTEAM = "";
+        var winnerID = "";
+        var winnerUserName = "";
+        var userInfo = [];
+        var userIndex = 0;
 
-        }, 3000);
+        var BluePlayername = '';
+        var RedPlayername = '';
+
+        if(this.RED_Kills > this.BLUE_kills){
+            winnerTEAM = "RED";
+        }
+        else{
+            winnerTEAM = "BLUE";
+        }
+
+        this.connections.forEach(con => {
+
+            userInfo[userIndex] = {
+                username: con.player.username,
+                team: con.player.TEAM,
+                Q: con.player.Q_ability,
+                E: con.player.E_ability,
+                F: con.player.F_ability
+            };
+
+            if(con.player.TEAM == winnerTEAM){
+                winnerID = con.player.TEAM;
+                winnerUserName = con.player.username;
+            }
+
+            userIndex++;
+
+            if(con.player.TEAM = "BLUE"){
+                BluePlayername = con.player.username;
+            }
+
+            if(con.player.TEAM = "RED"){
+                RedPlayername = con.player.username;
+            }
+        });
+
+        var returnData = {
+            totalTime: this.timeElapsed,
+            userInfo: userInfo,
+            winnerUserName: winnerUserName,
+            winnerID: winnerID,
+            blue: this.BLUE_kills,
+            red: this.RED_Kills
+        }
+
+        this.connections.forEach(con => {
+            con.socket.emit("game_end", returnData);
+        });
+
+        var gameData = new GameDataObject(this.timeElapsed, RedPlayername, BluePlayername, false, winnerID);
+
+        GameHistoryManager.SaveGame(gameData);
     }
 
     TeleportPlayer(connection = Connection, NewPosition){

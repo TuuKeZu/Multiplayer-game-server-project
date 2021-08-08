@@ -61,7 +61,7 @@
         },
         "Flame_A": {
             "DPS": 10,
-            "cast_time": 10,
+            "duration": 3.2,
             "ID": 2
         }
 

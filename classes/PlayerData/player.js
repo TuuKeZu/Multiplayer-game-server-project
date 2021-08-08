@@ -21,7 +21,7 @@ module.exports = class Player {
         this.E_ability = 0;
         this.F_ability = 0;
         this.IsReady = false;
-        this.TEAM;
+        this.TEAM = "";
         this.SpawnPosition;
         
         this.position = new _Vector3();
@@ -33,7 +33,7 @@ module.exports = class Player {
         
         this.health = 400;
         this.IsAlive = true;
-        this.canMove = true;
+        this.canMove = false;
 
         this.CanShoot0 = true;
         this.CanShoot1 = true;

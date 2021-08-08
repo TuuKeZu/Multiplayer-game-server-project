@@ -17,9 +17,6 @@ const ServerConsole = new Console();
 const mysql = require('./classes/MySQL/MySQLconnection');
 const mySQL = new mysql();
 
-const { settings } = require('cluster');
-const { emit } = require('process');
-
 ServerConsole.LogEvent("Server started", null, 0);
 
 let server = new Server();
@@ -81,8 +78,32 @@ process.stdin.on('data', function (text) {
         });
     }
 
-    if(console_array[0] == 'test'){
-        
+    if(console_array[0] == 'msg' && console_array.length > 2){
+        let msgContent = '';
+        let targetUser = console_array[1];
+        let targetConnection = null;
+
+        console_array.forEach(content => {
+            if(content == console_array[0] || content == console_array[1]){
+                return;
+            }
+            else{
+                msgContent += content + ' ';
+            }
+        });
+
+        server.connections.forEach(con => {
+            if(con.player.username == targetUser.trim()){
+                targetConnection = con;
+            }
+        });
+
+        if(targetConnection != null){
+            targetConnection.socket.emit('message_received', {msg: msgContent});
+        }
+        else{
+            ServerConsole.LogEvent("Couldnt find user with username of: "+targetUser)
+        }
     }
 });
 
